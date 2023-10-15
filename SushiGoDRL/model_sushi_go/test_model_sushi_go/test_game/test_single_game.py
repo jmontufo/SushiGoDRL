@@ -183,7 +183,7 @@ def test_play_cards_end_of_round_distributed_maki():
     agent2 = MakiLoverAgent()
     agent3 = MakiLoverAgent()
     agent4 = MakiLoverAgent()
-    game = SingleGame("Original", [agent1, agent2, agent3, agent4])
+    game = SingleGame("Original", [agent1, agent2, agent3, agent4], 40)
     player = game.get_player(0)
     
     firstCard = TwoMakiCard()
@@ -317,7 +317,7 @@ def test_play_cards_end_of_game():
     
     agent1 = MakiLoverAgent()
     agent2 = MakiLoverAgent()
-    game = SingleGame("Original", [agent1, agent2])
+    game = SingleGame("Original", [agent1, agent2], 100)
     player = game.get_player(0)
     
     firstCard = SashimiCard()
@@ -343,7 +343,7 @@ def test_play_cards_end_of_game():
     TestSingleGame.set_turn(game, 9)
     TestSingleGame.set_round(game, 3)
     
-    assert game.play_action_number(4) == 10
+    assert game.play_action_number(4) == 110
     assert other_player1.get_last_action_reward() == 6
     assert other_player2.get_last_action_reward() == 3
     assert len(player.get_hand_cards()) == 9
@@ -355,6 +355,7 @@ def test_play_cards_end_of_game():
     assert game.get_turn() == 1
     assert game.get_round() == 4
     assert game.is_finished() == True
+    assert game.report_scores() == [32, 6, 3]
     
 def test_play_cards_end_of_game_distribute_pudding():   
     

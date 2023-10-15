@@ -108,7 +108,22 @@ def test_add_partial_score():
     assert player.get_current_score() == 5
     assert player.get_last_action_reward() == 5
     
-   
+def test_add_reward():
+    
+    game = SingleGame()
+    player = game.get_player(0)
+    
+    player.add_reward(3)
+    
+    assert player.get_current_score() == 0
+    assert player.get_last_action_reward() == 3
+    
+    player.add_reward(2)
+    
+    assert player.get_current_score() == 0
+    assert player.get_last_action_reward() == 5
+    
+    
 def test_initialize_player_hand():    
     
     game = SingleGame()

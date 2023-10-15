@@ -191,6 +191,11 @@ class Player(object):
         self.__score += new_score
         self.__reward += new_score 
         
+    # Used for the reward for victory
+    def add_reward(self, new_score):
+
+        self.__reward += new_score 
+        
     def take_cards_from_other_player(self):
         
         awaiting_hand = self.get_awaiting_hand()

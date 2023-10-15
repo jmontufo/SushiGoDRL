@@ -8,10 +8,11 @@ from agents_sushi_go.random_agent import RandomAgent
        
 class Game(ABC):
     
-    def __init__(self, setup, num_players):
+    def __init__(self, setup, num_players, reward_by_win):
                         
         self.__setup = setup            
-        self.__num_players = num_players         
+        self.__num_players = num_players  
+        self.__reward_by_win = reward_by_win
         
         self.__init_deck()          
         self.__init_cards_by_round()                            
@@ -57,6 +58,10 @@ class Game(ABC):
     def get_num_players(self):
         
         return self.__num_players
+    
+    def get_reward_by_win(self):
+        
+        return self.__reward_by_win
     
     def get_deck(self):
         
@@ -228,7 +233,8 @@ class Game(ABC):
              self.__increase_round()
              
              if self.is_finished():
-                 self.__score_pudding()    
+                 self.__score_pudding()
+                 self.__score_victory()
                          
     def __clear_board_state(self):
      
@@ -266,6 +272,14 @@ class Game(ABC):
               
         if self.get_num_players() > 2:            
             self.__distribute_points(players_puddings, min, -6)
+                        
+    def __score_victory(self):
+                
+        winners = self.declare_winner()
+             
+        winner_reward = self.get_reward_by_win() / len(winners)
+        for winner_position in winners:
+            self.get_player(winner_position).add_reward(winner_reward)
             
     def __get_players_puddings(self):
         
@@ -349,11 +363,13 @@ class Game(ABC):
 
 class SingleGame(Game):             
 
-    def __init__(self, setup = "Original", agents  = [RandomAgent()]):
+    def __init__(self, setup = "Original", 
+                 agents  = [RandomAgent()],
+                 reward_by_win = 0):
       
         num_players = len(agents) + 1
 
-        super(SingleGame, self).__init__(setup, num_players)       
+        super(SingleGame, self).__init__(setup, num_players, reward_by_win)       
         
         self.__init_agents(agents)  
 
@@ -436,9 +452,9 @@ class SingleGame(Game):
         
 class MultiplayerGame(Game):
     
-    def __init__(self, setup = "Original", num_players = 2):
+    def __init__(self, setup = "Original", num_players = 2, reward_by_win = 0):
         
-        super(MultiplayerGame, self).__init__(setup, num_players)       
+        super(MultiplayerGame, self).__init__(setup, num_players, reward_by_win)       
             
     
     def get_legal_actions(self):
