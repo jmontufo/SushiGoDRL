@@ -17,14 +17,14 @@ Created on Thu Oct 12 16:08:12 2023
 # assert wasabiCard.get_attached_nigiri() == None
 
 
-import numpy as np
+# import numpy as np
 
-cards = [324,342]
-cards_by_round = 7
+# cards = [324,342]
+# cards_by_round = 7
  
-np.random.shuffle(cards)
+# np.random.shuffle(cards)
      
-hand_dealt = cards[0:cards_by_round]
-deck_cards = (cards[cards_by_round:])
+# hand_dealt = cards[0:cards_by_round]
+# deck_cards = (cards[cards_by_round:])
  
-print(hand_dealt)
+# print(hand_dealt)
