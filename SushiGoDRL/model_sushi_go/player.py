@@ -109,25 +109,40 @@ class Player(object):
         hand = self.get_hand()
         return hand.get_cards()
     
-    def play_a_turn(self, first_card_type, second_card_type = None):
+    def play_a_turn(self, first_card_type, second_card_type = None,
+                    chopsticks_phase_mode = False, 
+                    is_chopsticks_phase = False):
         
-        assert first_card_type is not None
+        original_score = self.get_current_score()   
+        
+        if not chopsticks_phase_mode:
+            assert first_card_type is not None
            
-        chopsticks_action = second_card_type is not None
-        
-        original_score = self.get_current_score()     
-            
-        self.__play_a_card(first_card_type) 
+            chopsticks_action = second_card_type is not None
+            self.__play_a_card(first_card_type) 
                 
-        if chopsticks_action:
+            if chopsticks_action:
+                
+                self.__play_a_card(second_card_type) 
+                self.__return_chopsticks_to_hand()
+        
+        else:
+            assert is_chopsticks_phase or first_card_type is not None
+            assert second_card_type is None
             
-            self.__play_a_card(second_card_type) 
-            self.__return_chopsticks_to_hand()           
-                                        
+            chopsticks_action = is_chopsticks_phase and first_card_type is not None
+            
+            if first_card_type is not None:
+                self.__play_a_card(first_card_type)
+                        
+            if chopsticks_action:            
+                self.__return_chopsticks_to_hand()
+                                                 
         turn_reward = self.get_current_score() - original_score
         self.__set_reward(turn_reward)        
         
-        self.__hand_cards_to_next_player()        
+        if not chopsticks_phase_mode or is_chopsticks_phase:
+            self.__hand_cards_to_next_player()        
     
     def __play_a_card(self, played_card_type):
         

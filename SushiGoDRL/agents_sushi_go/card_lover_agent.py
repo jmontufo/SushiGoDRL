@@ -20,11 +20,16 @@ class LoverAgent(Agent):
         super(LoverAgent, self).__init__(player)
          
     
-    def find_action(legal_actions, card_type):
+    def find_action(self, legal_actions, card_type):
                  
-        for action in legal_actions:
-            if action.is_any_action_of_type(card_type):
-                return action
+        if super(LoverAgent, self).is_chopsticks_phase_mode():
+            for action in legal_actions:
+                if action == card_type:
+                    return action
+        else:
+            for action in legal_actions:
+                if action.is_any_action_of_type(card_type):
+                    return action
                     
         return random.choice(legal_actions)
     
@@ -98,7 +103,7 @@ class SashimiLoverAgent(LoverAgent):
          
     def choose_action(self, legal_actions):
                     
-        return LoverAgent.find_action(legal_actions, SashimiCard)
+        return self.find_action(legal_actions, SashimiCard)
                         
 
 class SashimiSuperLoverAgent(SuperLoverAgent):
@@ -170,7 +175,7 @@ class MakiLoverAgent(LoverAgent):
          
     def choose_action(self, legal_actions):
                     
-        return LoverAgent.find_action(legal_actions, MakiCard)
+        return self.find_action(legal_actions, MakiCard)
         
 class MakiSuperLoverAgent(SuperLoverAgent):
 

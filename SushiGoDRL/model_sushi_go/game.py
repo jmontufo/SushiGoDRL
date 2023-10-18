@@ -2,15 +2,18 @@
 from abc import ABC, abstractmethod
 
 from model_sushi_go.deck import Deck
+from model_sushi_go.card import CARD_TYPES
 from model_sushi_go.player import Player
 from model_sushi_go.action import ActionManager
 from agents_sushi_go.random_agent import RandomAgent
        
 class Game(ABC):
     
-    def __init__(self, setup, num_players, reward_by_win):
+    def __init__(self, setup, num_players, reward_by_win, 
+                 chopsticks_phase_mode = False):
                         
-        self.__setup = setup            
+        self.__setup = setup   
+        self.__chopsticks_phase_mode = chopsticks_phase_mode         
         self.__num_players = num_players  
         self.__reward_by_win = reward_by_win
         
@@ -20,6 +23,7 @@ class Game(ABC):
         
         self.__round = 1
         self.__turn = 1
+        self.__phase = 1
         
         self.__log = []           
     
@@ -54,6 +58,10 @@ class Game(ABC):
     def get_setup(self):
         
         return self.__setup
+
+    def is_chopsticks_phase_mode(self):
+    
+        return self.__chopsticks_phase_mode
     
     def get_num_players(self):
         
@@ -106,6 +114,26 @@ class Game(ABC):
     def __reset_turn(self):
         
         self.__turn = 1
+    
+    def get_phase(self):
+        
+        return self.__phase
+    
+    def __increase_phase(self):
+        
+        self.__phase += 1
+        
+    def is_in_chopsticks_phase(self):
+        
+        return self.__phase == 2
+    
+    def __reset_phase(self):
+        
+        self.__phase = 1
+    
+    def __turn_has_finished(self):
+        
+        return self.__phase == 3 or not self.is_chopsticks_phase_mode()
         
     def is_finished(self):
         
@@ -168,20 +196,41 @@ class Game(ABC):
     @abstractmethod
     def get_legal_actions_numbers(self):
         pass
-    
+                
     def __get_legal_actions_of_player(self, player_number):
         
         player = self.get_player(player_number)
         
-        player_cards = player.get_hand_cards()
         chopsticks_available = player.is_chopsticks_move_available()
         
-        legal_actions = ActionManager.get_legal_actions(player_cards, chopsticks_available)
+        if self.is_chopsticks_phase_mode():
+            
+            if chopsticks_available or not self.is_in_chopsticks_phase():
+                legal_actions = player.get_hand().get_legal_actions()
+            else:
+                legal_actions = []
+            if self.is_in_chopsticks_phase():
+                legal_actions.append(None)
+        else:
+            player_cards = player.get_hand_cards()
+            legal_actions = ActionManager.get_legal_actions(player_cards, chopsticks_available)
         
         self.__add_legal_actions_to_log(player_number, legal_actions)        
                 
         return legal_actions
     
+    def __get_legal_actions_numbers(self, legal_actions):
+        if self.is_chopsticks_phase_mode():
+            legal_actions_numbers = []
+            for card_type in legal_actions:
+                if card_type is None:
+                    legal_actions_numbers.append(CARD_TYPES.get_num_types_of_card())  
+                else:
+                    legal_actions_numbers.append(card_type.get_number())                
+        else:
+            legal_actions_numbers = ActionManager.numbers_from_legal_actions(legal_actions)
+            
+        return legal_actions_numbers
     
     @abstractmethod
     def play_cards(self, cards):
@@ -213,28 +262,36 @@ class Game(ABC):
         log.append("Cards played: ")                
         self.__add_pair_of_cards_to_log(cards)
                 
-        player.play_a_turn(cards[0], cards[1])
+        player.play_a_turn(cards[0], cards[1], 
+                           self.is_chopsticks_phase_mode(),
+                           self.is_in_chopsticks_phase())
         
         log.append ("Before action:")            
         log.append(str(player))   
      
     def __finish_turn(self):         
-            
-        self.__increase_turn();
         
-        for player in self.get_players():
-            player.take_cards_from_other_player()
+        if self.is_chopsticks_phase_mode():
+            self.__increase_phase()
             
-        if self.__round_has_finished():         
+        if self.__turn_has_finished():
+        
+            self.__reset_phase()
+            self.__increase_turn();
             
-             self.__clear_board_state()
-             
-             self.__reset_turn()
-             self.__increase_round()
-             
-             if self.is_finished():
-                 self.__score_pudding()
-                 self.__score_victory()
+            for player in self.get_players():
+                player.take_cards_from_other_player()
+                
+            if self.__round_has_finished():         
+                
+                 self.__clear_board_state()
+                 
+                 self.__reset_turn()
+                 self.__increase_round()
+                 
+                 if self.is_finished():
+                     self.__score_pudding()
+                     self.__score_victory()
                          
     def __clear_board_state(self):
      
@@ -365,11 +422,13 @@ class SingleGame(Game):
 
     def __init__(self, setup = "Original", 
                  agents  = [RandomAgent()],
-                 reward_by_win = 0):
+                 reward_by_win = 0,
+                 chopsticks_phase_mode = False):
       
         num_players = len(agents) + 1
 
-        super(SingleGame, self).__init__(setup, num_players, reward_by_win)       
+        super(SingleGame, self).__init__(setup, num_players, 
+                                         reward_by_win, chopsticks_phase_mode)       
         
         self.__init_agents(agents)  
 
@@ -392,17 +451,17 @@ class SingleGame(Game):
             
     def get_legal_actions(self):
                 
-        return self._Game__get_legal_actions_of_player(0)    
+        return self._Game__get_legal_actions_of_player(0)
     
     def get_legal_actions_numbers(self):
         
-        return ActionManager.numbers_from_legal_actions(self.get_legal_actions())
+        return self._Game__get_legal_actions_numbers(self.get_legal_actions())
     
     def play_cards(self, cards):
        
         try:
             
-            self._Game__play_player_cards(0, cards)
+            self._Game__play_player_cards(0, cards)                     
             
             for agent_index, agent in enumerate(self.__get_agents()):
                     
@@ -412,14 +471,16 @@ class SingleGame(Game):
                 self.get_log().append ("Turn of player " + str(player_number))            
                 self.get_log().append(str(player))
                 
-                legal_actions = self._Game__get_legal_actions_of_player(player_number)
+                legal_actions = self._Game__get_legal_actions_of_player(player_number)  
                                        
                 action = agent.choose_action(legal_actions)
                 
                 self.get_log().append("Action chosen:")            
                 self.get_log().append(str(action))
-                    
-                cards = action.get_pair_of_cards()
+                if self.is_chopsticks_phase_mode():
+                    cards = [action]
+                else:
+                    cards = action.get_pair_of_cards()
                 
                 self._Game__play_player_cards(player_number, cards)                   
                  
@@ -427,7 +488,7 @@ class SingleGame(Game):
                     
                 self.get_log().append(str(player))
             
-            self._Game__finish_turn()            
+            self._Game__finish_turn()                                                       
             
             return self.get_player(0).get_last_action_reward()
         
@@ -439,14 +500,21 @@ class SingleGame(Game):
             raise inst
     
     def play_action(self, action):
-        
-        cards = action.get_pair_of_cards()
+        if self.is_chopsticks_phase_mode():
+            cards = [action]
+        else:
+            cards = action.get_pair_of_cards()
         
         return self.play_cards(cards)
     
-    def play_action_number(self, number):
-        
-        action = ActionManager.action_from_number(number)
+    def play_action_number(self, number):        
+        if self.is_chopsticks_phase_mode():
+            if number < CARD_TYPES.get_num_types_of_card():
+                action = CARD_TYPES.get_card_types_by_number()[number]
+            else:
+                action = None
+        else:
+            action = ActionManager.action_from_number(number)
         
         return self.play_action(action)
         
@@ -463,7 +531,7 @@ class MultiplayerGame(Game):
         
         for player_number in range(0, self.get_num_players()):
         
-            legal_actions =  self._Game__get_legal_actions_of_player(player_number)
+            legal_actions =  self._Game__get_legal_actions_of_player(player_number)  
             legal_actions_of_players.append(legal_actions)
             
         return legal_actions_of_players
@@ -477,7 +545,7 @@ class MultiplayerGame(Game):
         
         for legal_actions in legal_actions_by_player:
         
-            legal_actions_numbers = ActionManager.numbers_from_legal_actions(legal_actions)
+            legal_actions_numbers = self._Game__get_legal_actions_numbers(legal_actions)            
             legal_actions_numbers_of_players.append(legal_actions_numbers)
             
         return legal_actions_numbers_of_players
@@ -490,9 +558,9 @@ class MultiplayerGame(Game):
             for player_number in range(0, self.get_num_players()):
                 
                 players_cards = cards[player_number]           
-                self._Game__play_player_cards(player_number, players_cards)           
+                self._Game__play_player_cards(player_number, players_cards)          
             
-            self._Game__finish_turn()
+            self._Game__finish_turn()                             
                
             rewards = []       
             
@@ -535,8 +603,10 @@ class TestSingleGame(object):
      
     def get_agents(game):
         return game._SingleGame__get_agents()
-    
-    
+        
+    def set_phase(game, phase):
+        game._Game__phase = phase
+        
     def set_turn(game, turn):
         game._Game__turn = turn
         

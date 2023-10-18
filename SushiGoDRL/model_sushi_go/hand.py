@@ -45,6 +45,16 @@ class Hand(object):
                         break
                 
         return card_with_max_value
+
+    def get_legal_actions(self):
+        
+        legal_actions = set()
+        cards = self.get_cards()
+                
+        for card in cards:                    
+            legal_actions.add(card.get_type_for_action())
+       
+        return list(legal_actions)
         
     def __str__(self):
 

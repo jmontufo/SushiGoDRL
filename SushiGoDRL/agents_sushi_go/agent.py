@@ -7,14 +7,27 @@ class Agent(ABC):
         
         self.__player = player
         self.filename = filename
+        
+        if player is not None:
+            game = player.get_game()
+            if game is not None:
+                self.__chopsticks_phase_mode = game.is_chopsticks_phase_mode()
     
     def get_player(self):
         
         return self.__player
     
+    def is_chopsticks_phase_mode(self):
+        
+        return  self.__chopsticks_phase_mode
+    
     def set_player(self, player):
         
         self.__player = player
+        if player is not None:
+            game = player.get_game()
+            if game is not None:
+                self.__chopsticks_phase_mode = game.is_chopsticks_phase_mode()
        
     @abstractmethod
     def choose_action(self, legal_actions):

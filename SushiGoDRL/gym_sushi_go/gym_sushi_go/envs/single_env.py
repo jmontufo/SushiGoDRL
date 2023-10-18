@@ -17,7 +17,8 @@ from states_sushi_go.player_state import PlayerState
 class SushiGoEnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, agents, state_type = PlayerState, setup = "Original"):
+    def __init__(self, agents, state_type = PlayerState, setup = "Original",
+                 reward_by_win = 0, chopsticks_phase_mode = False):
         
         super(SushiGoEnv, self).__init__()
         
@@ -26,13 +27,20 @@ class SushiGoEnv(gym.Env):
         lows = self.state_type.get_low_values()
         highs = self.state_type.get_high_values()
         
-        self.__action_space = DynamicSpace(37)
+        if chopsticks_phase_mode:
+            self.__action_space = DynamicSpace(37)
+        else:
+            self.__action_space = DynamicSpace(37)
+            
         self.observation_space = spaces.Box(lows, highs, dtype=np.int32)
         
         self.setup = setup
         self.agents = agents
+        self.reward_by_win = reward_by_win
+        self.chopsticks_phase_mode = chopsticks_phase_mode
         
-        self.game = SingleGame(self.setup, self.agents)    
+        self.game = SingleGame(self.setup, self.agents, reward_by_win, 
+                               chopsticks_phase_mode)    
         
     
     def step(self, action):
@@ -57,7 +65,8 @@ class SushiGoEnv(gym.Env):
     
     def reset(self):
       
-        self.game = SingleGame(self.setup, self.agents)     
+        self.game = SingleGame(self.setup, self.agents, self.reward_by_win,
+                               self.chopsticks_phase_mode)     
         
         player = self.game.get_player(0)
         observation = self.state_type.build_by_player(player).get_as_observation()        

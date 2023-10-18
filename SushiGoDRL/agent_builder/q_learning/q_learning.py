@@ -48,33 +48,33 @@ import gym
 from gym_sushi_go.envs.single_env import SushiGoEnv
 
 # Register the environment
-gym.register(
-    id='sushi-go-v0',
-    entry_point='gym_sushi_go.envs.single_env:SushiGoEnv'
-)
+# gym.register(
+#     id='sushi-go-v0',
+#     entry_point='gym_sushi_go.envs.single_env:SushiGoEnv'
+# )
 
 num_players = 2
 
 versus_agents = [
                 RandomAgent(),
-                ChopstickLoverAgent(),
-                ChopstickHaterAgent(),
-                DumplingLoverAgent(),
-                DumplingSuperLoverAgent(),
-                MakiLoverAgent(),
-                MakiSuperLoverAgent(),
-                MakiHaterAgent(),
-                NigiriLoverAgent(),
-                NigiriSuperLoverAgent(),
-                PuddingLoverAgent(),
-                PuddingSuperLoverAgent(),
-                PuddingHaterAgent(),
-                SashimiLoverAgent(),
-                SashimiSuperLoverAgent(),
-                SashimiHaterAgent(),
-                TempuraLoverAgent(),
-                TempuraSuperLoverAgent(),
-                WasabiLoverAgent(),
+                # ChopstickLoverAgent(),
+                # ChopstickHaterAgent(),
+                # DumplingLoverAgent(),
+                # DumplingSuperLoverAgent(),
+                # MakiLoverAgent(),
+                # MakiSuperLoverAgent(),
+                # MakiHaterAgent(),
+                # NigiriLoverAgent(),
+                # NigiriSuperLoverAgent(),
+                # PuddingLoverAgent(),
+                # PuddingSuperLoverAgent(),
+                # PuddingHaterAgent(),
+                # SashimiLoverAgent(),
+                # SashimiSuperLoverAgent(),
+                # SashimiHaterAgent(),
+                # TempuraLoverAgent(),
+                # TempuraSuperLoverAgent(),
+                # WasabiLoverAgent(),
                 # QLearningAgentPhase1(),
                 # MCTreeSearchAgentPhase1(),
                 # DeepQLearningAgentPhase1(),
@@ -97,6 +97,8 @@ decay_rate = 0.00048
 learning_rate = 0.3           
 discount = 1           
 reference = "Phase4_test"      
+reward_by_win = 0
+chopsticks_phase_mode = False
 
 previous_table_filename = None
 # previous_table_filename = "Q_Learning_2p_PlayerSimplState_lr0.3_dis1_25000_Phase4_test.pkl" 
@@ -128,7 +130,8 @@ class QL_Builder(object):
             self.agents.append(random.choice(versus_agents))  
             
         self.env = gym.make('sushi-go-v0', agents = self.agents, 
-                            state_type = state_type)
+                            state_type = state_type, reward_by_win = reward_by_win,
+                            chopsticks_phase_mode = chopsticks_phase_mode)
         
         self.action_size = self.env.action_space.n
         self.state_size = self.env.state_type.get_total_numbers()

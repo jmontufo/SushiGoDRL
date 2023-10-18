@@ -28,3 +28,11 @@ Created on Thu Oct 12 16:08:12 2023
 # deck_cards = (cards[cards_by_round:])
  
 # print(hand_dealt)
+
+aaa = []
+
+aaa.append(3)
+aaa.append("sdf")
+aaa.append(None)
+
+print(aaa)
