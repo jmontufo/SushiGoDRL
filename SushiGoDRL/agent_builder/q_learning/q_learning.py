@@ -88,26 +88,28 @@ versus_agents = [
                 # DoubleDeepQLearningAgentPhase3()
                 ]
 
-state_type = PlayerSimplWithPhaseState
-total_episodes = 10000 
+state_type = PlayerSimplState
+total_episodes = 5000 
 max_epsilon = 1             
 min_epsilon = 0.05            
 decay_rate = 0.0005       
-learning_rate = 0.7           
+learning_rate = 0.3           
 discount = 1           
-reference = "Phase4_test"      
+reference = "BestPhase1test"      
 reward_by_win = 0
-chopsticks_phase_mode = True
+chopsticks_phase_mode = state_type.trained_with_chopsticks_phase()
 
-previous_table_filename = None
-# previous_table_filename = "Q_Learning_2p_PlayerSimplState_lr0.3_dis1_25000_Phase4_test.pkl" 
+# previous_table_filename = None
+# current_epsilon = max_epsilon
+previous_table_filename = "Q_Learning_2p_PlayerSimplState_lr0.3_dis1_5000_BestPhase1test.pkl" 
+current_epsilon = 0.1280197488162686
 
 
 class QL_Builder(object):
     
     def __init__(self, num_players, versus_agents, state_type, total_episodes, 
                  max_epsilon, min_epsilon, decay_rate, learning_rate, discount, 
-                 reference, previous_table_filename = None):
+                 reference, previous_table_filename = None, current_epsilon = max_epsilon):
         
         self.reference = reference
         
@@ -115,7 +117,10 @@ class QL_Builder(object):
         
         self.max_epsilon = max_epsilon
         self.min_epsilon = min_epsilon
+        self.current_epsilon = current_epsilon
         self.decay_rate = decay_rate
+        
+        self.previous_episodes = 0
         
         self.learning_rate = learning_rate
         self.discount = discount
@@ -136,9 +141,9 @@ class QL_Builder(object):
         self.state_size = self.env.state_type.get_total_numbers()
         
         if previous_table_filename is not None:
-            previous_episodes = previous_table_filename[:-4]
-            previous_episodes = previous_episodes.split("_")[-2]
-            previous_episodes = int(previous_episodes)
+            self.previous_episodes = previous_table_filename[:-4]
+            self.previous_episodes = self.previous_episodes.split("_")[-2]
+            self.previous_episodes = int(self.previous_episodes)
             
             Q_input = open(previous_table_filename, 'rb')
             self.qtable = pickle.load(Q_input)
@@ -154,26 +159,28 @@ class QL_Builder(object):
         self.filename += state_type.__name__ + "_"
         self.filename += "lr" + str(learning_rate) + "_"
         self.filename += "dis" + str(discount) + "_"
-        self.filename += str(previous_episodes + total_episodes) + "_"
+        self.filename += str(self.previous_episodes + total_episodes) + "_"
         self.filename += reference
         
     def run(self):      
         
-        epsilon = self.max_epsilon           
+        epsilon = self.current_epsilon           
         
         n_table = np.zeros((self.state_size, self.action_size))
             
         batches = []
         current_batch = BatchInfo()
         
-        for episode in range(self.total_episodes):
+        final_episode = self.total_episodes + self.previous_episodes
+        
+        for episode in range(self.previous_episodes, final_episode):
             
             for i in range(self.num_players - 1):
                 self.agents[i] = random.choice(self.versus_agents)    
                 
             state = self.env.reset()                
             
-            if episode % 1000 == 0 and episode > 0:
+            if episode % 1000 == 0 and episode > self.previous_episodes:
                                 
                 current_batch.epsilon_at_end = epsilon
                 
@@ -279,6 +286,6 @@ class QL_Builder(object):
         
 builder = QL_Builder(num_players, versus_agents, state_type, total_episodes, 
                  max_epsilon, min_epsilon, decay_rate, learning_rate, discount, 
-                 reference, previous_table_filename)
+                 reference, previous_table_filename, current_epsilon)
 
 builder.run()
