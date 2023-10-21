@@ -118,19 +118,11 @@ class TableState(State):
 
         self.__set_tempuras(self.get_tempuras() % self.tempura_values)
         self.__set_sashimis(self.get_sashimis() % self.sashimi_values)
-        self.__set_dumplings(self.get_dumplings() % self.dumplings_values)
-        self.__set_makis(self.get_makis() % self.maki_values)
-        self.__set_puddings(self.get_puddings() % self.pudding_values)
-        
-        if self.get_chopsticks() == 0:            
-            self.__set_chopsticks(0)
-        else:                      
-            self.__set_chopsticks(1)
-            
-        if self.get_wasabis() == 0:            
-            self.__set_wasabis(0)
-        else:                      
-            self.__set_wasabis(1)
+        self.__set_dumplings(min(self.get_dumplings(), self.dumplings_values - 1))
+        self.__set_makis(min(self.get_makis(), self.maki_values - 1))
+        self.__set_puddings(min(self.get_puddings(), self.pudding_values - 1))
+        self.__set_chopsticks(min(self.get_chopsticks(), self.chopsticks_values - 1))        
+        self.__set_wasabis(min(self.get_wasabis(), self.wasabi_values - 1))
                             
     def __get_values_from_number(self, number):
         
@@ -191,9 +183,8 @@ class TableState(State):
         self.__set_makis(observation[3])   
         self.__set_puddings(observation[4])   
         self.__set_chopsticks(observation[5])   
-        self.__set_wasabis(observation[6])   
-    
-    
+        self.__set_wasabis(observation[6])  
+            
     def get_as_observation(self):
         
         state = (self.get_tempuras(), 

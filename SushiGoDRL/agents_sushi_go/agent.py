@@ -28,7 +28,7 @@ class Agent(ABC):
             game = player.get_game()
             if game is not None:
                 self.__chopsticks_phase_mode = game.is_chopsticks_phase_mode()
-       
+                       
     @abstractmethod
     def choose_action(self, legal_actions):
         pass
@@ -39,4 +39,8 @@ class Agent(ABC):
     
     @abstractmethod
     def save_training(self):
+        pass
+    
+    @abstractmethod
+    def trained_with_chopsticks_phase(self):
         pass

@@ -2,8 +2,6 @@ import random
 
 from agents_sushi_go.agent import Agent
 
-# from states_sushi_go.player_state import PlayerState
-# from states_sushi_go.player_state import PlayerFullState
 from model_sushi_go.card import TempuraCard
 from model_sushi_go.card import SashimiCard
 from model_sushi_go.card import MakiCard
@@ -23,9 +21,8 @@ class LoverAgent(Agent):
     def find_action(self, legal_actions, card_type):
                  
         if super(LoverAgent, self).is_chopsticks_phase_mode():
-            for action in legal_actions:
-                if action == card_type:
-                    return action
+            if card_type in legal_actions:
+                return card_type
         else:
             for action in legal_actions:
                 if action.is_any_action_of_type(card_type):
@@ -38,17 +35,22 @@ class LoverAgent(Agent):
     
     def save_training(self):
         pass
+    
+    def trained_with_chopsticks_phase(self):
+        return True
+    
         
-
 class SuperLoverAgent(Agent):
         
     def __init__(self, player = None):
         
         super(SuperLoverAgent, self).__init__(player)
          
-    
-    def find_action(legal_actions, card_type):
-                 
+    def find_action(self, legal_actions, card_type):
+            
+        # Super Lover agents make no sense in chopsticks phase mode
+        assert not super(SuperLoverAgent, self).is_chopsticks_phase_mode()
+        
         actions_with_type = []
         
         for action in legal_actions:
@@ -67,6 +69,10 @@ class SuperLoverAgent(Agent):
     
     def save_training(self):
         pass
+    
+    def trained_with_chopsticks_phase(self):
+        return False
+    
         
 class HaterAgent(Agent):
         
@@ -75,13 +81,19 @@ class HaterAgent(Agent):
         super(HaterAgent, self).__init__(player)
          
     
-    def find_action(legal_actions, card_type):
-                 
+    def find_action(self, legal_actions, card_type):
+        
+        assert len(legal_actions) > 0         
         actions_without_type = []
         
-        for action in legal_actions:
-            if not action.is_any_action_of_type(card_type):
-                actions_without_type.append(action)
+        if super(HaterAgent, self).is_chopsticks_phase_mode():
+            if card_type in legal_actions and len(legal_actions) > 1:
+                actions_without_type = legal_actions
+                actions_without_type.remove(card_type)
+        else:
+            for action in legal_actions:
+                if not action.is_any_action_of_type(card_type):
+                    actions_without_type.append(action)
                     
         if len(actions_without_type) > 0:
             return random.choice(actions_without_type)
@@ -93,7 +105,10 @@ class HaterAgent(Agent):
     
     def save_training(self):
         pass
-        
+            
+    def trained_with_chopsticks_phase(self):
+        return True
+    
 
 class SashimiLoverAgent(LoverAgent):  
         
@@ -114,10 +129,10 @@ class SashimiSuperLoverAgent(SuperLoverAgent):
 
     def choose_action(self, legal_actions):
                 
-        return SuperLoverAgent.find_action(legal_actions, SashimiCard)
+        return self.find_action(legal_actions, SashimiCard)
                         
 
-class SashimiHaterAgent(SuperLoverAgent):
+class SashimiHaterAgent(HaterAgent):
         
     def __init__(self, player = None):
         
@@ -125,7 +140,7 @@ class SashimiHaterAgent(SuperLoverAgent):
 
     def choose_action(self, legal_actions):
                 
-        return HaterAgent.find_action(legal_actions, SashimiCard)
+        return self.find_action(legal_actions, SashimiCard)
         
 class DumplingLoverAgent(LoverAgent):
         
@@ -135,7 +150,7 @@ class DumplingLoverAgent(LoverAgent):
 
     def choose_action(self, legal_actions):
                     
-        return LoverAgent.find_action(legal_actions, DumplingCard)
+        return self.find_action(legal_actions, DumplingCard)
         
 class DumplingSuperLoverAgent(SuperLoverAgent):
         
@@ -145,7 +160,7 @@ class DumplingSuperLoverAgent(SuperLoverAgent):
     
     def choose_action(self, legal_actions):
                     
-        return SuperLoverAgent.find_action(legal_actions, DumplingCard)       
+        return self.find_action(legal_actions, DumplingCard)       
         
 class TempuraLoverAgent(LoverAgent):
 
@@ -155,7 +170,7 @@ class TempuraLoverAgent(LoverAgent):
          
     def choose_action(self, legal_actions):
                     
-        return LoverAgent.find_action(legal_actions, TempuraCard)
+        return self.find_action(legal_actions, TempuraCard)
         
 class TempuraSuperLoverAgent(SuperLoverAgent):
 
@@ -165,7 +180,7 @@ class TempuraSuperLoverAgent(SuperLoverAgent):
     
     def choose_action(self, legal_actions):
                     
-        return SuperLoverAgent.find_action(legal_actions, TempuraCard)    
+        return self.find_action(legal_actions, TempuraCard)    
                
 class MakiLoverAgent(LoverAgent):
     
@@ -185,7 +200,7 @@ class MakiSuperLoverAgent(SuperLoverAgent):
     
     def choose_action(self, legal_actions):
                     
-        return SuperLoverAgent.find_action(legal_actions, MakiCard)        
+        return self.find_action(legal_actions, MakiCard)        
         
 class MakiHaterAgent(HaterAgent):
 
@@ -195,7 +210,7 @@ class MakiHaterAgent(HaterAgent):
     
     def choose_action(self, legal_actions):
                     
-        return HaterAgent.find_action(legal_actions, MakiCard)   
+        return self.find_action(legal_actions, MakiCard)   
         
 class PuddingLoverAgent(LoverAgent):
 
@@ -205,7 +220,7 @@ class PuddingLoverAgent(LoverAgent):
          
     def choose_action(self, legal_actions):
                     
-        return LoverAgent.find_action(legal_actions, PuddingCard)
+        return self.find_action(legal_actions, PuddingCard)
         
 class PuddingSuperLoverAgent(SuperLoverAgent):
 
@@ -215,7 +230,7 @@ class PuddingSuperLoverAgent(SuperLoverAgent):
     
     def choose_action(self, legal_actions):
                     
-        return SuperLoverAgent.find_action(legal_actions, PuddingCard)    
+        return self.find_action(legal_actions, PuddingCard)    
         
 class PuddingHaterAgent(HaterAgent):
 
@@ -225,7 +240,7 @@ class PuddingHaterAgent(HaterAgent):
     
     def choose_action(self, legal_actions):
                     
-        return HaterAgent.find_action(legal_actions, PuddingCard) 
+        return self.find_action(legal_actions, PuddingCard) 
         
 class ChopstickLoverAgent(LoverAgent):
 
@@ -235,7 +250,7 @@ class ChopstickLoverAgent(LoverAgent):
          
     def choose_action(self, legal_actions):
                     
-        return LoverAgent.find_action(legal_actions, ChopsticksCard)
+        return self.find_action(legal_actions, ChopsticksCard)
         
 class ChopstickHaterAgent(HaterAgent):
 
@@ -245,24 +260,34 @@ class ChopstickHaterAgent(HaterAgent):
     
     def choose_action(self, legal_actions):
                     
-        return HaterAgent.find_action(legal_actions, ChopsticksCard) 
+        return self.find_action(legal_actions, ChopsticksCard) 
     
-# class ChopstickLoverAtFirstAgent(LoverAgent):
+class ChopstickLoverAtFirstAgent(LoverAgent):
 
-#     def __init__(self, player = None):
+    def __init__(self, player = None):
         
-#         super(ChopstickLoverAtFirstAgent, self).__init__(player)
+        super(ChopstickLoverAtFirstAgent, self).__init__(player)
          
-#     def choose_action(self, legal_actions):
+    def choose_action(self, legal_actions):
         
-#         player_state = PlayerFullState.build_by_player(self.get_player())
-        
-#         game_state = player_state.get_game_state()
-        
-#         if game_state.get_current_turn() < 4:                  
-#             return LoverAgent.find_action(legal_actions, ChopsticksCard) 
-#         else:
-#             return HaterAgent.find_action(legal_actions, ChopsticksCard) 
+        if self.get_player().get_game().get_turn() < 4:                  
+            return self.find_action(legal_actions, ChopsticksCard) 
+        else:
+            actions_without_type = []
+            
+            if super(ChopstickLoverAtFirstAgent, self).is_chopsticks_phase_mode():
+                if ChopsticksCard in legal_actions and len(legal_actions) > 1:
+                    actions_without_type = legal_actions
+                    actions_without_type.remove(ChopsticksCard)
+            else:
+                for action in legal_actions:
+                    if not action.is_any_action_of_type(ChopsticksCard):
+                        actions_without_type.append(action)
+                        
+            if len(actions_without_type) > 0:
+                return random.choice(actions_without_type)
+            else:    
+                return random.choice(legal_actions) 
         
 class NigiriLoverAgent(LoverAgent):
 
@@ -272,7 +297,7 @@ class NigiriLoverAgent(LoverAgent):
          
     def choose_action(self, legal_actions):
                     
-        return LoverAgent.find_action(legal_actions, NigiriCard)
+        return self.find_action(legal_actions, NigiriCard)
         
 class NigiriSuperLoverAgent(SuperLoverAgent):
     
@@ -282,7 +307,7 @@ class NigiriSuperLoverAgent(SuperLoverAgent):
     
     def choose_action(self, legal_actions):
                     
-        return SuperLoverAgent.find_action(legal_actions, NigiriCard)   
+        return self.find_action(legal_actions, NigiriCard)   
         
 class NigiriHaterAgent(HaterAgent):
 
@@ -292,7 +317,7 @@ class NigiriHaterAgent(HaterAgent):
     
     def choose_action(self, legal_actions):
                     
-        return HaterAgent.find_action(legal_actions, NigiriCard) 
+        return self.find_action(legal_actions, NigiriCard) 
             
 class WasabiLoverAgent(LoverAgent):
 
@@ -302,24 +327,34 @@ class WasabiLoverAgent(LoverAgent):
          
     def choose_action(self, legal_actions):
                     
-        return LoverAgent.find_action(legal_actions, WasabiCard) 
+        return self.find_action(legal_actions, WasabiCard) 
             
-# class WasabiLoverAtFirstAgent(LoverAgent):
+class WasabiLoverAtFirstAgent(LoverAgent):
 
-#     def __init__(self, player = None):
+    def __init__(self, player = None):
         
-#         super(WasabiLoverAtFirstAgent, self).__init__(player)
+        super(WasabiLoverAtFirstAgent, self).__init__(player)
          
-#     def choose_action(self, legal_actions):
-        
-#         player_state = PlayerFullState.build_by_player(self.get_player())
-        
-#         game_state = player_state.get_game_state()
-        
-#         if game_state.get_current_turn() < 4:                  
-#             return LoverAgent.find_action(legal_actions, WasabiCard) 
-#         else:
-#             return HaterAgent.find_action(legal_actions, WasabiCard) 
+    def choose_action(self, legal_actions):
+                
+        if self.get_player().get_game().get_turn() < 4:                  
+            return self.find_action(legal_actions, WasabiCard)
+        else:
+            actions_without_type = []
+            
+            if super(WasabiLoverAtFirstAgent, self).is_chopsticks_phase_mode():
+                if WasabiCard in legal_actions and len(legal_actions) > 1:
+                    actions_without_type = legal_actions
+                    actions_without_type.remove(WasabiCard)
+            else:
+                for action in legal_actions:
+                    if not action.is_any_action_of_type(WasabiCard):
+                        actions_without_type.append(action)
+                        
+            if len(actions_without_type) > 0:
+                return random.choice(actions_without_type)
+            else:    
+                return random.choice(legal_actions)
         
 class WasabiHaterAgent(HaterAgent):
 
@@ -329,5 +364,5 @@ class WasabiHaterAgent(HaterAgent):
     
     def choose_action(self, legal_actions):
                     
-        return HaterAgent.find_action(legal_actions, WasabiCard) 
+        return self.find_action(legal_actions, WasabiCard) 
             

@@ -42,5 +42,7 @@ class State(ABC):
     @abstractmethod
     def get_expected_distribution():
         pass
+            
+    def trained_with_chopsticks_phase():
+        return True
     
-     

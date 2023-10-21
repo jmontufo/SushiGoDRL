@@ -190,20 +190,20 @@ class Game(ABC):
         f.close()
     
     @abstractmethod
-    def get_legal_actions(self):
+    def get_legal_actions(self, force_no_chopsticks_phase = False):
         pass
     
     @abstractmethod
-    def get_legal_actions_numbers(self):
+    def get_legal_actions_numbers(self, force_no_chopsticks_phase):
         pass
                 
-    def __get_legal_actions_of_player(self, player_number):
+    def __get_legal_actions_of_player(self, player_number, force_no_chopsticks_phase = False):
         
         player = self.get_player(player_number)
         
         chopsticks_available = player.is_chopsticks_move_available()
         
-        if self.is_chopsticks_phase_mode():
+        if self.is_chopsticks_phase_mode() and not force_no_chopsticks_phase:
             
             if chopsticks_available or not self.is_in_chopsticks_phase():
                 legal_actions = player.get_hand().get_legal_actions()
@@ -431,6 +431,7 @@ class SingleGame(Game):
                                          reward_by_win, chopsticks_phase_mode)       
         
         self.__init_agents(agents)  
+        self.__second_cards = {}
 
     def __init_agents(self, agents):
         
@@ -449,13 +450,13 @@ class SingleGame(Game):
         
         return self.get_player(0)
             
-    def get_legal_actions(self):
+    def get_legal_actions(self, force_no_chopsticks_phase = False):
                 
-        return self._Game__get_legal_actions_of_player(0)
+        return self._Game__get_legal_actions_of_player(0, force_no_chopsticks_phase)
     
-    def get_legal_actions_numbers(self):
+    def get_legal_actions_numbers(self, force_no_chopsticks_phase = False):
         
-        return self._Game__get_legal_actions_numbers(self.get_legal_actions())
+        return self._Game__get_legal_actions_numbers(self.get_legal_actions(force_no_chopsticks_phase))
     
     def play_cards(self, cards):
        
@@ -471,9 +472,24 @@ class SingleGame(Game):
                 self.get_log().append ("Turn of player " + str(player_number))            
                 self.get_log().append(str(player))
                 
-                legal_actions = self._Game__get_legal_actions_of_player(player_number)  
-                                       
-                action = agent.choose_action(legal_actions)
+                force_no_chopsticks_phase = not agent.trained_with_chopsticks_phase()
+                legal_actions = self._Game__get_legal_actions_of_player(player_number, force_no_chopsticks_phase)
+                         
+
+                if not agent.trained_with_chopsticks_phase():
+                
+                    if self.is_in_chopsticks_phase():
+                        action = self.__second_cards[agent_index]
+                       
+                    else:
+                        double_action = agent.choose_action(legal_actions)
+                
+                        cards = double_action.get_pair_of_cards()                
+                        self.__second_cards[agent_index] = cards[1]
+                        action = cards[0]
+                else:
+                    action = agent.choose_action(legal_actions)
+                             
                 
                 self.get_log().append("Action chosen:")            
                 self.get_log().append(str(action))

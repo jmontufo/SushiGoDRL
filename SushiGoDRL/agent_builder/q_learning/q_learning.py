@@ -10,6 +10,7 @@ import pickle
 from agent_builder.utils import *
 
 from states_sushi_go.player_state import PlayerSimplState
+from states_sushi_go.with_phase.player_state import PlayerSimplWithPhaseState
 from states_sushi_go.game_state import GameState
 
 from agents_sushi_go.random_agent import RandomAgent
@@ -24,6 +25,7 @@ from agents_sushi_go.card_lover_agent import MakiLoverAgent
 from agents_sushi_go.card_lover_agent import MakiSuperLoverAgent
 from agents_sushi_go.card_lover_agent import MakiHaterAgent
 from agents_sushi_go.card_lover_agent import WasabiLoverAgent
+from agents_sushi_go.card_lover_agent import WasabiLoverAtFirstAgent
 from agents_sushi_go.card_lover_agent import NigiriLoverAgent
 from agents_sushi_go.card_lover_agent import NigiriSuperLoverAgent
 from agents_sushi_go.card_lover_agent import PuddingLoverAgent
@@ -31,6 +33,7 @@ from agents_sushi_go.card_lover_agent import PuddingSuperLoverAgent
 from agents_sushi_go.card_lover_agent import PuddingHaterAgent
 from agents_sushi_go.card_lover_agent import ChopstickLoverAgent
 from agents_sushi_go.card_lover_agent import ChopstickHaterAgent
+from agents_sushi_go.card_lover_agent import ChopstickLoverAtFirstAgent
 # from agents_sushi_go.q_learning_agent import QLearningAgentPhase1
 # from agents_sushi_go.q_learning_agent import QLearningAgentPhase2
 # from agents_sushi_go.q_learning_agent import QLearningAgentPhase3
@@ -47,34 +50,30 @@ from agents_sushi_go.card_lover_agent import ChopstickHaterAgent
 import gym
 from gym_sushi_go.envs.single_env import SushiGoEnv
 
-# Register the environment
-# gym.register(
-#     id='sushi-go-v0',
-#     entry_point='gym_sushi_go.envs.single_env:SushiGoEnv'
-# )
-
 num_players = 2
 
 versus_agents = [
                 RandomAgent(),
-                # ChopstickLoverAgent(),
-                # ChopstickHaterAgent(),
-                # DumplingLoverAgent(),
+                ChopstickLoverAgent(),
+                ChopstickHaterAgent(),
+                ChopstickLoverAtFirstAgent(),
+                DumplingLoverAgent(),
+                MakiLoverAgent(),
+                MakiHaterAgent(),
+                NigiriLoverAgent(),
+                PuddingLoverAgent(),
+                PuddingHaterAgent(),
+                SashimiLoverAgent(),
+                SashimiHaterAgent(),
+                TempuraLoverAgent(),
+                WasabiLoverAgent(),
+                WasabiLoverAtFirstAgent(),
                 # DumplingSuperLoverAgent(),
-                # MakiLoverAgent(),
                 # MakiSuperLoverAgent(),
-                # MakiHaterAgent(),
-                # NigiriLoverAgent(),
                 # NigiriSuperLoverAgent(),
-                # PuddingLoverAgent(),
                 # PuddingSuperLoverAgent(),
-                # PuddingHaterAgent(),
-                # SashimiLoverAgent(),
                 # SashimiSuperLoverAgent(),
-                # SashimiHaterAgent(),
-                # TempuraLoverAgent(),
                 # TempuraSuperLoverAgent(),
-                # WasabiLoverAgent(),
                 # QLearningAgentPhase1(),
                 # MCTreeSearchAgentPhase1(),
                 # DeepQLearningAgentPhase1(),
@@ -89,16 +88,16 @@ versus_agents = [
                 # DoubleDeepQLearningAgentPhase3()
                 ]
 
-state_type = PlayerSimplState
+state_type = PlayerSimplWithPhaseState
 total_episodes = 10000 
 max_epsilon = 1             
 min_epsilon = 0.05            
-decay_rate = 0.00048       
-learning_rate = 0.3           
+decay_rate = 0.0005       
+learning_rate = 0.7           
 discount = 1           
 reference = "Phase4_test"      
 reward_by_win = 0
-chopsticks_phase_mode = False
+chopsticks_phase_mode = True
 
 previous_table_filename = None
 # previous_table_filename = "Q_Learning_2p_PlayerSimplState_lr0.3_dis1_25000_Phase4_test.pkl" 

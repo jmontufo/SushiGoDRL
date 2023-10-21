@@ -68,6 +68,10 @@ class QLearningAgent(Agent):
         output = open(self.filename, "wb")
         pickle.dump(self.q_table,output)
         output.close()     
+    
+    def trained_with_chopsticks_phase(self):
+        return False
+    
 
 class QLearningAgentTest(QLearningAgent):
     

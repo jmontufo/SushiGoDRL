@@ -18,4 +18,7 @@ class RandomAgent(Agent):
     def save_training(self):
         pass
     
+    def trained_with_chopsticks_phase(self):
+        return True
+    
     
