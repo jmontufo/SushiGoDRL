@@ -337,7 +337,7 @@ class Game(ABC):
         winner_reward = self.get_reward_by_win() / len(winners)
         for winner_position in winners:
             self.get_player(winner_position).add_reward(winner_reward)
-            
+                        
     def __get_players_puddings(self):
         
         players_puddings = []

@@ -11,6 +11,8 @@ def save_batches(batches, filename):
         f.write(str(batch_info.times_exploration) + "\t\t")
         f.write(str(batch_info.times_explotation) + "\t\t")
         f.write(str(batch_info.total_reward) + "\t\t")
+        f.write(str(batch_info.points) + "\t\t")
+        f.write(str(batch_info.points_by_victory) + "\t\t")
         f.write(str(batch_info.epsilon_at_end) + "\t\n")
     f.close()
 
@@ -20,6 +22,8 @@ class BatchInfo(object):
         self.times_exploration = 0
         self.times_explotation = 0
         self.total_reward = 0
+        self.points = 0
+        self.points_by_victory = 0
         self.n = 0   
         self.epsilon_at_end = 0
         

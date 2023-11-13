@@ -8,7 +8,7 @@ class Player(object):
         
         # Game keeps track of overall board state and deck
         self.__game = game
-        # Position in circle (0 next to 1 and deck.num_players-1)
+        # Position in circle (0 next to 1 and game.num_players-1)
         self.__position = position
         # Hand of the player
         self.__hand = None
@@ -226,7 +226,19 @@ class Player(object):
         table = self.get_table()
         
         returned_cards = table.return_cards_except_pudding()
-        deck.take_back_cards(returned_cards)        
+        deck.take_back_cards(returned_cards) 
+        
+    def can_remember_cards_of_position(self, other_position):
+        
+        game = self.get_game()
+        played_turns = game.get_turn() - 1
+        
+        if self.get_position() > other_position:
+            other_position = other_position + game.get_num_players() - 1
+        
+        distance = other_position - self.get_position()
+        
+        return played_turns >= distance
  
 class TestPlayer(object):       
      

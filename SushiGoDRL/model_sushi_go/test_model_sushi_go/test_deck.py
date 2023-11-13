@@ -37,6 +37,7 @@ def add_cards_in_deck_by_type(num_cards_by_type, cards):
         
     return num_cards_by_type
 
+#108
 def assert_deck_has_the_original_game_cards(cards_by_type):    
     assert cards_by_type[ChopsticksCard] == 4
     assert cards_by_type[EggNigiriCard] == 5

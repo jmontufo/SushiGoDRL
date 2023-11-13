@@ -7,15 +7,12 @@ class State(ABC):
     def build_by_player(player):
         pass
     
-    @abstractmethod
     def build_by_number(number):
         pass
 
-    @abstractmethod
     def get_state_number(self):
         pass    
     
-    @abstractmethod
     def get_total_numbers():
         pass
     

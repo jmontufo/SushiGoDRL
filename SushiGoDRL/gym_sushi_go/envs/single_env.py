@@ -28,7 +28,7 @@ class SushiGoEnv(gym.Env):
         highs = self.state_type.get_high_values()
         
         if chopsticks_phase_mode:
-            self.__action_space = DynamicSpace(37)
+            self.__action_space = DynamicSpace(9)
         else:
             self.__action_space = DynamicSpace(37)
             
@@ -52,7 +52,16 @@ class SushiGoEnv(gym.Env):
         observation = self.state_type.build_by_player(player).get_as_observation()        
         done = self.game.is_finished()
         
-        return observation, reward, done, {};
+        info = {}
+        if done:
+            winners = self.game.declare_winner()
+            
+            if 0 in winners:
+                info['points_by_victory'] = 1 / len(winners)
+            else :
+                info['points_by_victory'] = 0
+                    
+        return observation, reward, done, info;
       
     @property
     def action_space(self):

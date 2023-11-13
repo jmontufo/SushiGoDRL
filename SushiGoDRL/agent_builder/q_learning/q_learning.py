@@ -48,7 +48,6 @@ from agents_sushi_go.card_lover_agent import ChopstickLoverAtFirstAgent
 # from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase3
 
 import gym
-from gym_sushi_go.envs.single_env import SushiGoEnv
 
 num_players = 2
 
@@ -88,36 +87,39 @@ versus_agents = [
                 # DoubleDeepQLearningAgentPhase3()
                 ]
 
-state_type = PlayerSimplState
-total_episodes = 5000 
-max_epsilon = 1             
-min_epsilon = 0.05            
-decay_rate = 0.0005       
-learning_rate = 0.3           
-discount = 1           
-reference = "BestPhase1test"      
-reward_by_win = 0
-chopsticks_phase_mode = state_type.trained_with_chopsticks_phase()
+# state_type = PlayerSimplWithPhaseState
+# total_episodes = 5000 
+# max_epsilon = 1             
+# min_epsilon = 0.05            
+# decay_rate = 0.0005       
+# learning_rate = 0.3           
+# discount = 1           
+# reference = "BestPhase1test"      
+# reward_by_win = 100
 
 # previous_table_filename = None
 # current_epsilon = max_epsilon
-previous_table_filename = "Q_Learning_2p_PlayerSimplState_lr0.3_dis1_5000_BestPhase1test.pkl" 
-current_epsilon = 0.1280197488162686
+# previous_table_filename = "Q_Learning_2p_PlayerSimplState_lr0.3_dis1_5000_BestPhase1test.pkl" 
+# current_epsilon = 0.1280197488162686
 
 
 class QL_Builder(object):
     
     def __init__(self, num_players, versus_agents, state_type, total_episodes, 
                  max_epsilon, min_epsilon, decay_rate, learning_rate, discount, 
-                 reference, previous_table_filename = None, current_epsilon = max_epsilon):
+                 reference, previous_table_filename = None, current_epsilon = None,
+                 reward_by_win = 0):
         
         self.reference = reference
         
         self.num_players = num_players
+        self.reward_by_win = reward_by_win
         
         self.max_epsilon = max_epsilon
         self.min_epsilon = min_epsilon
         self.current_epsilon = current_epsilon
+        if current_epsilon is None:
+            self.current_epsilon = max_epsilon
         self.decay_rate = decay_rate
         
         self.previous_episodes = 0
@@ -133,8 +135,10 @@ class QL_Builder(object):
         for i in range(num_players - 1):
             self.agents.append(random.choice(versus_agents))  
             
+        
+        chopsticks_phase_mode = state_type.trained_with_chopsticks_phase()
         self.env = gym.make('sushi-go-v0', agents = self.agents, 
-                            state_type = state_type, reward_by_win = reward_by_win,
+                            state_type = state_type, reward_by_win = self.reward_by_win,
                             chopsticks_phase_mode = chopsticks_phase_mode)
         
         self.action_size = self.env.action_space.n
@@ -151,7 +155,7 @@ class QL_Builder(object):
             
         else:
             
-            previous_episodes = 0
+            self.previous_episodes = 0
             self.qtable = np.zeros((self.state_size, self.action_size))            
         
         self.filename = "Q_Learning_"
@@ -186,7 +190,9 @@ class QL_Builder(object):
                 
                 print(str(episode) + " episodes.")
                 print("Reward: " + str(current_batch.total_reward))
+                print("Points: " + str(current_batch.points))   
                 print("Epsilon: " + str(current_batch.epsilon_at_end))
+                print("Victories: " + str(current_batch.points_by_victory))  
                 
                 episodes_batch_id = int(episode / 1000)                    
                 batch_filename = self.filename + "-" + str(episodes_batch_id)   
@@ -254,6 +260,8 @@ class QL_Builder(object):
             epsilon = self.min_epsilon + (self.max_epsilon - self.min_epsilon) * np.exp(-self.decay_rate * episode) 
                      
             current_batch.total_reward += episode_rewards
+            current_batch.points += episode_rewards - info['points_by_victory'] * self.reward_by_win                      
+            current_batch.points_by_victory += info['points_by_victory']
                 
     
         current_batch.epsilon_at_end = epsilon    
@@ -261,7 +269,9 @@ class QL_Builder(object):
         
         print(str(self.total_episodes) + " episodes.")
         print("Reward: " + str(current_batch.total_reward))
-        print("Epsilon: " + str(current_batch.epsilon_at_end))        
+        print("Points: " + str(current_batch.points))   
+        print("Victories: " + str(current_batch.points_by_victory))        
+        print("Epsilon: " + str(current_batch.epsilon_at_end))   
         
         self.save_qtable(self.filename)
         QL_Builder.save_as_text(self.qtable, self.filename)        
@@ -284,8 +294,8 @@ class QL_Builder(object):
         f.close()
         
         
-builder = QL_Builder(num_players, versus_agents, state_type, total_episodes, 
-                 max_epsilon, min_epsilon, decay_rate, learning_rate, discount, 
-                 reference, previous_table_filename, current_epsilon)
+# builder = QL_Builder(num_players, versus_agents, state_type, total_episodes, 
+#                  max_epsilon, min_epsilon, decay_rate, learning_rate, discount, 
+#                  reference, previous_table_filename, current_epsilon, reward_by_win)
 
-builder.run()
+# builder.run()

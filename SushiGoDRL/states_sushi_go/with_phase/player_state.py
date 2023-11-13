@@ -3,7 +3,7 @@ import numpy as np
 
 
 from states_sushi_go.state import State
-from states_sushi_go.hand_state import HandState, HandStateWithoutZeroValue
+from states_sushi_go.hand_state import HandState, HandStateWithoutZeroValue, CompleteHandState
 from states_sushi_go.table_state import TableState, TableSimplState, TableFullState
 from states_sushi_go.with_phase.game_state import GameWithPhaseState
       
@@ -687,10 +687,6 @@ class PlayerFullWithPhaseState(State):
                 
         return np.concatenate(distribution)  
     
-    # GameWithPhaseState
-    # HandStateWithoutZeroValue    
-    # TableFullState
-class PlayerFullWithPhaseStateV2(State):    
     
     def __init__(self):         
 
@@ -768,9 +764,9 @@ class PlayerFullWithPhaseStateV2(State):
                             
     def __get_values_from_observation(self, observation):
         
-        self.__set_game_state(GameWithPhaseState.build_by_observation(observation[0:2]))
-        self.__set_table_state(TableFullState.build_by_observation(observation[2:9]))
-        self.__set_hand_state(HandStateWithoutZeroValue.build_by_observation(observation[9:]))
+        self.__set_game_state(GameWithPhaseState.build_by_observation(observation[0:3]))
+        self.__set_table_state(TableFullState.build_by_observation(observation[3:10]))
+        self.__set_hand_state(HandStateWithoutZeroValue.build_by_observation(observation[10:]))
         
     def get_as_observation(self):
         
@@ -831,4 +827,189 @@ class PlayerFullWithPhaseStateV2(State):
         distribution.append(HandStateWithoutZeroValue.get_expected_distribution())
                 
         return np.concatenate(distribution)
+    
+    # GameWithPhaseState
+    # CompleteHandState    
+    # TableFullState
+class PlayerCompleteState(State):    
+    
+    def __init__(self):         
 
+        self.__game_state = None
+        self.__hand_state = None
+        self.__table_state = None
+        
+    def trained_with_chopsticks_phase():
+        return True
+        
+    def get_game_state(self):
+        
+        return self.__game_state
+        
+    def __set_game_state(self, game_state):
+        
+        self.__game_state = game_state   
+        
+    def get_table_state(self):
+        
+        return self.__table_state
+        
+    def __set_table_state(self, table_state):
+        
+        self.__table_state = table_state   
+        
+    def get_hand_state(self):
+        
+        return self.__hand_state
+        
+    def __set_hand_state(self, table_state):
+        
+        self.__hand_state = table_state   
+        
+    def __get_values_from_player(self, player):
+        
+        self.__set_game_state(GameWithPhaseState.build_by_player(player))        
+        self.__set_table_state(TableFullState.build_by_player(player))
+        self.__set_hand_state(CompleteHandState.build_by_player(player))                    
+                            
+    def __get_values_from_observation(self, observation):
+        
+        self.__set_game_state(GameWithPhaseState.build_by_observation(observation[0:3]))
+        self.__set_table_state(TableFullState.build_by_observation(observation[3:10]))
+        self.__set_hand_state(CompleteHandState.build_by_observation(observation[10:]))
+        
+    def get_as_observation(self):
+        
+        game_state_observation = self.get_game_state().get_as_observation()
+        table_state_observation = self.get_table_state().get_as_observation()   
+        hand_state_observation = self.get_hand_state().get_as_observation()   
+        
+        return np.concatenate((game_state_observation, table_state_observation, hand_state_observation))       
+    
+    def build_by_player(player):
+                
+        player_state = PlayerCompleteState()        
+        player_state.__get_values_from_player(player)
+        
+        return player_state
+    
+    def build_by_observation(observation):
+        
+        player_state = PlayerCompleteState()        
+        player_state.__get_values_from_observation(observation)
+        
+        return player_state
+        
+    def get_low_values():
+        
+        return np.concatenate((GameWithPhaseState.get_low_values(), TableFullState.get_low_values(), CompleteHandState.get_low_values()))
+    
+    def get_high_values():
+        
+        return np.concatenate((GameWithPhaseState.get_high_values(), TableFullState.get_high_values(), CompleteHandState.get_high_values()))    
+    
+    def get_number_of_observations():
+    
+        return GameWithPhaseState.get_number_of_observations() + TableFullState.get_number_of_observations() + CompleteHandState.get_number_of_observations()
+                
+    def get_expected_distribution():
+        
+        distribution = list()
+        
+        distribution.append(GameWithPhaseState.get_expected_distribution())
+        distribution.append(TableFullState.get_expected_distribution())                
+        distribution.append(CompleteHandState.get_expected_distribution())
+                
+        return np.concatenate(distribution)
+
+    # CompleteHandState    
+    # TableFullState
+class OtherPlayerCompleteState(State):    
+    
+    def __init__(self):         
+
+        self.__hand_state = None
+        self.__table_state = None
+        
+    def trained_with_chopsticks_phase():
+        return True
+        
+    def get_table_state(self):
+        
+        return self.__table_state
+        
+    def __set_table_state(self, table_state):
+        
+        self.__table_state = table_state   
+        
+    def get_hand_state(self):
+        
+        return self.__hand_state
+        
+    def __set_hand_state(self, table_state):
+        
+        self.__hand_state = table_state   
+        
+    def __get_values_from_player(self, player):
+              
+        self.__set_table_state(TableFullState.build_by_player(player))
+        self.__set_hand_state(CompleteHandState.build_by_player(player))      
+
+    def __build_when_unknown_hand(self, player):
+              
+        self.__set_table_state(TableFullState.build_by_player(player))
+        self.__set_hand_state(CompleteHandState.build_when_unknown_hand())                   
+                            
+    def __get_values_from_observation(self, observation):
+        
+        self.__set_table_state(TableFullState.build_by_observation(observation[0:7]))
+        self.__set_hand_state(CompleteHandState.build_by_observation(observation[7:]))
+        
+    def get_as_observation(self):
+        
+        table_state_observation = self.get_table_state().get_as_observation()   
+        hand_state_observation = self.get_hand_state().get_as_observation()   
+        
+        return np.concatenate((table_state_observation, hand_state_observation))       
+    
+    def build_by_player(player):
+                
+        player_state = OtherPlayerCompleteState()        
+        player_state.__get_values_from_player(player)
+        
+        return player_state    
+    
+    def build_when_unknown_hand(player):
+                
+        player_state = OtherPlayerCompleteState()        
+        player_state.__build_when_unknown_hand(player)
+        
+        return player_state
+        
+    def build_by_observation(observation):
+        
+        player_state = OtherPlayerCompleteState()        
+        player_state.__get_values_from_observation(observation)
+        
+        return player_state
+                
+    def get_low_values():
+        
+        return np.concatenate((TableFullState.get_low_values(), CompleteHandState.get_low_values()))
+    
+    def get_high_values():
+        
+        return np.concatenate((TableFullState.get_high_values(), CompleteHandState.get_high_values()))    
+    
+    def get_number_of_observations():
+    
+        return TableFullState.get_number_of_observations() + CompleteHandState.get_number_of_observations()
+    
+    def get_expected_distribution():
+        
+        distribution = list()
+        
+        distribution.append(TableFullState.get_expected_distribution())
+        distribution.append(CompleteHandState.get_expected_distribution())  
+                
+        return np.concatenate(distribution)  
