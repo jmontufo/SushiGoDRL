@@ -4,6 +4,11 @@ Created on Sat Oct 21 11:43:28 2023
 
 @author: jmont
 """
+
+
+from gym_sushi_go import setup
+
+
 from states_sushi_go.player_state import PlayerSimplState
 from states_sushi_go.game_state import GameState
 from states_sushi_go.with_phase.player_state import PlayerSimplWithPhaseState
