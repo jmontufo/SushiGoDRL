@@ -9,7 +9,7 @@ from states_sushi_go.state import State
 
 class GameWithPhaseState(State):
     
-    current_phase_values = 10
+    current_phase_values = 2
     current_turn_values = 10
     current_round_values = 3
     

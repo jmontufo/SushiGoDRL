@@ -118,21 +118,22 @@ class DQNetwork(torch.nn.Module):
         self.__state_size = state_type.get_number_of_observations()
         self.__action_size = action_size
         
-        self.__q_network = self.__define_model()
+        self.__q_network = self.__define_model()        
+        self.__target_network = self.__define_model()
         
         self.__optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
         
 
     def __define_model(self):
                
-        critic = nn.Sequential(
+        net = nn.Sequential(
             torch.nn.Linear(self.__state_size, 256),
             # torch.nn.ReLU(),
-            # torch.nn.Linear(256, 256),
+            # torch.nn.Linear(128, 128),
             torch.nn.ReLU(),
             torch.nn.Linear(256, self.__action_size))
         
-        return critic
+        return net
        
     
     def __get_Q(self, state):
@@ -142,6 +143,15 @@ class DQNetwork(torch.nn.Module):
         state_t = torch.FloatTensor(state)
         
         return self.__q_network(state_t)
+    
+    
+    def __get_target_Q(self, state):
+            
+        if type(state) is tuple:
+            state = np.array(state)
+        state_t = torch.FloatTensor(state)
+        
+        return self.__target_network(state_t)
         
     
     def get_action_state_value(self, state, action):
@@ -155,7 +165,6 @@ class DQNetwork(torch.nn.Module):
         return torch.gather(actions_values, 1, action)
     
     def get_next_action(self, state, legal_actions):
-        
         q_values = self.__get_Q(state).detach()
                 
         legal_actions_values = []
@@ -189,9 +198,21 @@ class DQNetwork(torch.nn.Module):
        
     def calculate_loss(self, state_t, action_t, reward_t, new_states_t, new_legal_actions_t, dones_t):
         
+        # print("state_t")
+        # print(state_t)
+        # print("action_t")
+        # print(action_t)
         qvals = self.get_action_state_value(state_t, action_t)
-       
-        qvals_next = self.__get_Q(new_states_t)
+        
+        
+        # print("qvals")
+        # print(qvals)
+        # print("new_states_t")
+        # print(new_states_t)
+         
+        qvals_next = self.__get_target_Q(new_states_t)
+        # print("qvals_next")
+        # print(qvals_next) 
         qvals_next[new_legal_actions_t] = -100000000
 
         
@@ -200,8 +221,6 @@ class DQNetwork(torch.nn.Module):
      
         
         qvals_next[dones_t] = 0
-        print("qvals_next")
-        print(qvals_next)   
         
         expected_qvals = qvals_next + reward_t
         
@@ -214,6 +233,11 @@ class DQNetwork(torch.nn.Module):
         loss = torch.nn.MSELoss()(qvals, expected_qvals.reshape(-1,1))       
         
         return loss  
+    
+    
+    def update_target_network(self):
+        
+        self.__target_network.load_state_dict(self.__q_network.state_dict())
         
     def load(self, filename):
         return
@@ -240,10 +264,10 @@ class DQLT_Builder(object):
         self.min_epsilon = min_epsilon
         self.decay_rate = decay_rate        
         
-        batch_size = 1024
+        batch_size = 256
         # batch_size = 16
-        memory_size = 4096         
-        # self.update_target_freq = 100         
+        memory_size = 1024         
+        self.update_target_freq = 100         
         
         self.versus_agents = versus_agents
         self.agents = [] 
@@ -301,7 +325,7 @@ class DQLT_Builder(object):
         epsilon = 1                 # Exploration rate
         
         rewards = []
-        # rewards_by_target_update = []
+        rewards_by_target_update = []
             
         batches = []
         current_batch = BatchInfo()
@@ -338,13 +362,13 @@ class DQLT_Builder(object):
                 
                 save_batches(batches, batch_filename + "-batches_info.txt")   
                                     
-            # if episode > 0 and episode % self.update_target_freq == 0:
+            if episode > 0 and episode % self.update_target_freq == 0:
              
-            #     self.dq_network.update_target_network()
+                self.dq_network.update_target_network()
                 
-            #     rewards_mean = sum(rewards[-self.update_target_freq:]) / self.update_target_freq
-            #     rewards_by_target_update.append(rewards_mean)
-            #     print ("Score over time: " +  str(rewards_mean))
+                rewards_mean = sum(rewards[-self.update_target_freq:]) / self.update_target_freq
+                rewards_by_target_update.append(rewards_mean)
+                print ("Score over time: " +  str(rewards_mean))
                         
             while not done:     
                         
@@ -392,8 +416,8 @@ class DQLT_Builder(object):
                 
                 legal_actions_array = np.full(self.env.action_space.n, True)
                 
-                for action in new_legal_actions:
-                    legal_actions_array[action] = False
+                for legal_action in new_legal_actions:
+                    legal_actions_array[legal_action] = False
                                     
                 self.memory.add([state, action, reward, new_state, legal_actions_array, done])
                                
