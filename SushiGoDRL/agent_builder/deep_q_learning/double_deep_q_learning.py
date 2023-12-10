@@ -10,11 +10,10 @@ import pickle
 
 from agent_builder.utils import *
 
-from tensorflow.keras.backend import clear_session
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense
 from tensorflow.keras.models import model_from_json
-from memory_profiler import profile
+
 from collections import deque
 
 from states_sushi_go.complete_state_fixed import CompleteState
@@ -47,7 +46,7 @@ from agents_sushi_go.deep_q_learning_agent import DoubleDeepQLearningAgentPhase1
 from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
 from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
 
-class StateTransformationData(object):
+class StateTransformationData():
     
     def __init__(self, state_type):
         
@@ -62,7 +61,7 @@ class StateTransformationData(object):
         pickle.dump(self, output)
         output.close()    
 
-class Memory(object):
+class Memory():
     
     def __init__(self, batch_size, max_size):
         
@@ -99,7 +98,7 @@ class Memory(object):
         
         return len(self.__buffer)
 
-class DQNetwork(object):
+class DDQNetwork:
     
     def __init__(self, learning_rate, state_type, action_size, batch_size):
         
@@ -151,13 +150,15 @@ class DQNetwork(object):
         
         return chosen_action
     
-    @profile
+    
     def update(self, states_batch, actions_batch, rewards_batch, new_states_batch, new_legal_actions_batch, dones_batch):
            
         target = self.__q_network.predict(states_batch)           
              
-        new_states_values = self.__target_network.predict(new_states_batch)
-      
+        new_states_values = self.__target_network.predict(new_states_batch)    
+        new_states_in_q_network = self.__q_network.predict(new_states_batch)
+
+
         for experiment in range(self.__batch_size):
             
             experiment_state = states_batch[experiment]
@@ -167,22 +168,26 @@ class DQNetwork(object):
             experiment_new_state = new_states_batch[experiment]
             experiment_new_legal_actions = new_legal_actions_batch[experiment]
             experiment_new_states_values = new_states_values[experiment]
+            experiment_new_states_in_q_network = new_states_in_q_network[experiment]
                  
             experiment_new_value = experiment_reward
             
             if not experiment_done:
                                             
-                new_legal_actions_values = []
-                
-                for new_legal_action in experiment_new_legal_actions:
-                    new_legal_actions_values.append(experiment_new_states_values[new_legal_action])            
-                
-                experiment_new_value += self.__learning_rate * np.amax(new_legal_actions_values)
-                            
+                new_legal_actions_q_values = []
+                                  
+                for legal_action in experiment_new_legal_actions:
+                    new_legal_actions_q_values.append(experiment_new_states_in_q_network[legal_action])     
+                    
+                best_actions_in_target = np.argwhere(new_legal_actions_q_values == np.amax(new_legal_actions_q_values)).flatten().tolist()
+                new_best_action = experiment_new_legal_actions[random.choice(best_actions_in_target)]
+                                
+                experiment_new_value += self.__learning_rate * experiment_new_states_values[new_best_action]
+                                  
             target[experiment][experiment_action] = experiment_new_value
             
-        self.__q_network.fit(states_batch, target, epochs=1, verbose=False)    
-        clear_session()
+        self.__q_network.fit(states_batch, target, epochs=1, verbose=1)    
+        
             
     def update_target_network(self):
         
@@ -195,7 +200,8 @@ class DQNetwork(object):
         json_file.close()
         
         self.__q_network = model_from_json(loaded_model_json)
-        self.__q_network.load_weights(filename + ".h5")        
+        self.__q_network.load_weights(filename + ".h5")
+        
         self.__q_network.compile(loss='mse', optimizer='adam')
         
         self.update_target_network()
@@ -210,7 +216,7 @@ class DQNetwork(object):
         self.__q_network.save_weights(filename + ".h5")
         
  
-class DQL_Builder(object):
+class DDQL_Builder:
 
     def __init__(self, num_players, versus_agents, state_type, total_episodes, 
                  max_epsilon, min_epsilon, decay_rate, learning_rate, 
@@ -235,17 +241,13 @@ class DQL_Builder(object):
             
         for i in range(num_players - 1):
             self.agents.append(random.choice(versus_agents))    
-            
-            
-        chopsticks_phase_mode = state_type.trained_with_chopsticks_phase()
         
         self.memory = Memory(batch_size, memory_size)
-        self.env = gym.make('sushi-go-v0', agents = self.agents, state_type = state_type,
-        chopsticks_phase_mode = chopsticks_phase_mode)
+        self.env = gym.make('sushi-go-v0', agents = self.agents, state_type = state_type)
         
         action_size = self.env.action_space.n
-                
-        self.dq_network = DQNetwork(learning_rate, state_type, action_size, batch_size)
+        
+        self.dq_network = DDQNetwork(learning_rate, state_type, action_size, batch_size)
         
         if previous_nn_filename is not None:
             
@@ -262,23 +264,16 @@ class DQL_Builder(object):
             
             previous_episodes = 0
             self.state_transf_data = None
-        
                 
-        self.filename = "Deep_Q_Learning_"
+        self.filename = "Double_Deep_Q_Learning_"
         self.filename += str(num_players) + "p_"
         self.filename += state_type.__name__ + "_"
         self.filename += "lr" + str(learning_rate) + "_"
         self.filename += str(previous_episodes + total_episodes) + "_"
         self.filename += reference
         
+        self.state_transf_data = None
         
-    def set_params(self,params):
-        
-        self.state_transf_data = params
-        
-    def save_params(self):
-        
-        self.state_transf_data.save("params")
     
     def run(self):
         
@@ -318,7 +313,7 @@ class DQL_Builder(object):
                     self.state_transf_data.save(batch_filename)
                                 
                 batches.append(current_batch)
-                current_batch = BatchInfo()
+                current_batch = BatchInfo()                
                 
                 save_batches(batches, batch_filename + "-batches_info.txt")   
                                     
@@ -408,7 +403,7 @@ class DQL_Builder(object):
                         self.state_transf_data.means.append(np.mean(state_attribute,0))
                         self.state_transf_data.stDevs.append(np.std(state_attribute,0))
                         
-            if self.memory.has_enough_experiments() and self.state_transf_data != None:
+            if self.memory.is_full():
                                         
                 batch = self.memory.sample()
                 
@@ -416,7 +411,7 @@ class DQL_Builder(object):
                 actions_batch = np.array([each[1] for each in batch])
                 rewards_batch = np.array([each[2] for each in batch]) 
                 new_states_batch = np.array([each[3] for each in batch]).astype(float)
-                new_actions_batch = np.array([each[4] for each in batch], dtype=object)
+                new_actions_batch = np.array([each[4] for each in batch])
                 dones_batch = np.array([each[5] for each in batch])
                 
                 distributions = self.state_type.get_expected_distribution()
@@ -459,4 +454,5 @@ class DQL_Builder(object):
         batches.append(current_batch)                
         
         save_batches(batches, self.filename + "-batches_info.txt")   
-                             
+                         
+            

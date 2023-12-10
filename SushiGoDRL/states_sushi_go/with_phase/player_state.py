@@ -829,15 +829,15 @@ class PlayerFullWithPhaseState(State):
         return np.concatenate(distribution)
     
     # GameWithPhaseState
-    # CompleteHandState    
     # TableFullState
+    # CompleteHandState    
 class PlayerCompleteState(State):    
     
     def __init__(self):         
 
         self.__game_state = None
-        self.__hand_state = None
         self.__table_state = None
+        self.__hand_state = None
         
     def trained_with_chopsticks_phase():
         return True
@@ -921,15 +921,15 @@ class PlayerCompleteState(State):
         distribution.append(CompleteHandState.get_expected_distribution())
                 
         return np.concatenate(distribution)
-
-    # CompleteHandState    
+ 
     # TableFullState
+    # CompleteHandState   
 class OtherPlayerCompleteState(State):    
     
     def __init__(self):         
 
-        self.__hand_state = None
         self.__table_state = None
+        self.__hand_state = None
         
     def trained_with_chopsticks_phase():
         return True

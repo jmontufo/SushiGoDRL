@@ -92,11 +92,11 @@ class CompleteMemoryState(State):
         
     def get_as_observation(self):
                
-        table_state_observation = self.get_player_state().get_as_observation()   
+        player_observation = self.get_player_state().get_as_observation()   
         next_player_observation = self.get_next_player_state().get_as_observation() 
         previous_player_observation = self.get_previous_player_state().get_as_observation()   
         
-        return np.concatenate((table_state_observation, next_player_observation, previous_player_observation))     
+        return np.concatenate((player_observation, next_player_observation, previous_player_observation))     
     
     def build_by_player(player):
                 
@@ -147,3 +147,5 @@ class CompleteMemoryState(State):
                     
         return np.concatenate(distribution)
     
+    def trained_with_chopsticks_phase():
+        return True

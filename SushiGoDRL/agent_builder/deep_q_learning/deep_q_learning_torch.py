@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# -*- coding: utf-8 -*-
-
-
 import numpy as np
 from scipy import stats
 import random
@@ -15,41 +12,9 @@ import torch.nn as nn
 
 from collections import deque
 
-from states_sushi_go.complete_state_fixed import CompleteState
-from agents_sushi_go.random_agent import RandomAgent
-from agents_sushi_go.card_lover_agent import SashimiLoverAgent
-from agents_sushi_go.card_lover_agent import SashimiSuperLoverAgent
-from agents_sushi_go.card_lover_agent import SashimiHaterAgent
-from agents_sushi_go.card_lover_agent import TempuraLoverAgent
-from agents_sushi_go.card_lover_agent import TempuraSuperLoverAgent
-from agents_sushi_go.card_lover_agent import DumplingLoverAgent
-from agents_sushi_go.card_lover_agent import DumplingSuperLoverAgent
-from agents_sushi_go.card_lover_agent import MakiLoverAgent
-from agents_sushi_go.card_lover_agent import MakiSuperLoverAgent
-from agents_sushi_go.card_lover_agent import MakiHaterAgent
-from agents_sushi_go.card_lover_agent import WasabiLoverAgent
-from agents_sushi_go.card_lover_agent import WasabiLoverAtFirstAgent
-from agents_sushi_go.card_lover_agent import NigiriLoverAgent
-from agents_sushi_go.card_lover_agent import NigiriSuperLoverAgent
-from agents_sushi_go.card_lover_agent import PuddingLoverAgent
-from agents_sushi_go.card_lover_agent import PuddingSuperLoverAgent
-from agents_sushi_go.card_lover_agent import PuddingHaterAgent
-from agents_sushi_go.card_lover_agent import ChopstickLoverAgent
-from agents_sushi_go.card_lover_agent import ChopstickHaterAgent
-from agents_sushi_go.card_lover_agent import ChopstickLoverAtFirstAgent
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase1
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase2
-from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase1
-from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase2
-from agents_sushi_go.deep_q_learning_agent import DoubleDeepQLearningAgentPhase1
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
 import matplotlib.pyplot as plt
-# deregisterCustomGym('sushi-go-v0')
-# deregisterCustomGym('sushi-go-multi-v0')
-# import gym_sushi_go     
 
-
+import gym
 
 class StateTransformationData(object):
     
@@ -105,11 +70,12 @@ class Memory(object):
 
 class DQNetwork(torch.nn.Module):
     
-    def __init__(self, learning_rate, state_type, action_size, batch_size):
+    def __init__(self, learning_rate, state_type, action_size, batch_size, discount):
         
         super(DQNetwork, self).__init__()
         
         self.__learning_rate = learning_rate
+        self.__discount = discount
         self.__state_type = state_type        
         self.__batch_size = batch_size
 
@@ -136,7 +102,7 @@ class DQNetwork(torch.nn.Module):
         return net
        
     
-    def __get_Q(self, state):
+    def get_Q(self, state):
             
         if type(state) is tuple:
             state = np.array(state)
@@ -165,7 +131,8 @@ class DQNetwork(torch.nn.Module):
         return torch.gather(actions_values, 1, action)
     
     def get_next_action(self, state, legal_actions):
-        q_values = self.__get_Q(state).detach()
+        
+        q_values = self.get_Q(state).detach()
                 
         legal_actions_values = []
         
@@ -198,21 +165,10 @@ class DQNetwork(torch.nn.Module):
        
     def calculate_loss(self, state_t, action_t, reward_t, new_states_t, new_legal_actions_t, dones_t):
         
-        # print("state_t")
-        # print(state_t)
-        # print("action_t")
-        # print(action_t)
         qvals = self.get_action_state_value(state_t, action_t)
-        
-        
-        # print("qvals")
-        # print(qvals)
-        # print("new_states_t")
-        # print(new_states_t)
-         
+                 
         qvals_next = self.__get_target_Q(new_states_t)
-        # print("qvals_next")
-        # print(qvals_next) 
+       
         qvals_next[new_legal_actions_t] = -100000000
 
         
@@ -222,13 +178,7 @@ class DQNetwork(torch.nn.Module):
         
         qvals_next[dones_t] = 0
         
-        expected_qvals = qvals_next + reward_t
-        
-          
-        # print("qvals")
-        # print(qvals)     
-        # print("expected_qvals reshape")
-        # print(expected_qvals.reshape(-1,1))   
+        expected_qvals = self.__discount * qvals_next + reward_t
         
         loss = torch.nn.MSELoss()(qvals, expected_qvals.reshape(-1,1))       
         
@@ -239,20 +189,23 @@ class DQNetwork(torch.nn.Module):
         
         self.__target_network.load_state_dict(self.__q_network.state_dict())
         
-    def load(self, filename):
-        return
-       
-                
-    def save(self, filename):
+    # def load(self, filename):
         
-       return
+    #     self.__q_network.load_state_dict(torch.load(filename + ".pt"))
+    #     self.eval()
+        
+    #     self.__target_network.load_state_dict(self.__q_network.state_dict())
+                
+    # def save(self, filename):
+        
+    #     torch.save(self.__q_network.state_dict(), filename + ".pt")
         
  
 class DQLT_Builder(object):
 
     def __init__(self, num_players, versus_agents, state_type, total_episodes, 
-                 max_epsilon, min_epsilon, decay_rate, learning_rate, 
-                 reference = "", previous_nn_filename = None):             
+                 max_epsilon, min_epsilon, decay_rate, learning_rate, discount,
+                 reference = "", previous_nn_filename = None, reward_by_win = 0):             
                     
         self.total_episodes = total_episodes
         
@@ -263,9 +216,9 @@ class DQLT_Builder(object):
         self.max_epsilon = max_epsilon
         self.min_epsilon = min_epsilon
         self.decay_rate = decay_rate        
+        self.reward_by_win = reward_by_win
         
         batch_size = 256
-        # batch_size = 16
         memory_size = 1024         
         self.update_target_freq = 100         
         
@@ -280,19 +233,20 @@ class DQLT_Builder(object):
        
         self.memory = Memory(batch_size, memory_size)
         self.env = gym.make('sushi-go-v0', agents = self.agents, state_type = state_type,
-        chopsticks_phase_mode = chopsticks_phase_mode)
+        chopsticks_phase_mode = chopsticks_phase_mode, reward_by_win = self.reward_by_win)
         
         
         action_size = self.env.action_space.n
                 
-        self.dq_network = DQNetwork(learning_rate, state_type, action_size, batch_size)
+        self.dq_network = DQNetwork(learning_rate, state_type, action_size, batch_size, discount)
         
         if previous_nn_filename is not None:
             
             previous_episodes = previous_nn_filename.split("_")[-2]
             previous_episodes = int(previous_episodes)
-            
-            self.dq_network.load(previous_nn_filename)
+                        
+            self.dq_network = torch.load(previous_nn_filename + ".pt")
+            # self.dq_network.eval()
             
             Q_input = open(previous_nn_filename + ".pkl", 'rb')
             self.state_transf_data = pickle.load(Q_input)
@@ -304,10 +258,12 @@ class DQLT_Builder(object):
             self.state_transf_data = None
         
                 
-        self.filename = "Deep_Q_Learning_torch_"
+        self.filename = "DQLt_"
         self.filename += str(num_players) + "p_"
         self.filename += state_type.__name__ + "_"
         self.filename += "lr" + str(learning_rate) + "_"
+        self.filename += "d" + str(discount) + "_"
+        self.filename += "wr" + str(reward_by_win) + "_"
         self.filename += str(previous_episodes + total_episodes) + "_"
         self.filename += reference
         
@@ -348,12 +304,15 @@ class DQLT_Builder(object):
                 
                 print(str(episode) + " episodes.")
                 print("Reward: " + str(current_batch.total_reward))
+                print("Score: " + str(current_batch.points))
+                print("Wins: " + str(current_batch.points_by_victory))
                 print("Epsilon: " + str(current_batch.epsilon_at_end))
+                
                 
                 episodes_batch_id = int(episode / 1000)
                 batch_filename = self.filename + "-" + str(episodes_batch_id)
                 
-                self.dq_network.save(batch_filename)  
+                torch.save(self.dq_network, batch_filename + ".pt")
                 if self.state_transf_data is not None:
                     self.state_transf_data.save(batch_filename)
                                 
@@ -368,7 +327,7 @@ class DQLT_Builder(object):
                 
                 rewards_mean = sum(rewards[-self.update_target_freq:]) / self.update_target_freq
                 rewards_by_target_update.append(rewards_mean)
-                print ("Score over time: " +  str(rewards_mean))
+                print ("Reward over time: " +  str(rewards_mean))
                         
             while not done:     
                         
@@ -496,9 +455,12 @@ class DQLT_Builder(object):
             epsilon = self.min_epsilon + (self.max_epsilon - self.min_epsilon) * np.exp(-self.decay_rate * episode) 
               
             rewards.append(episode_rewards)
-            current_batch.total_reward += episode_rewards
+            current_batch.total_reward += episode_rewards         
+            current_batch.points += info['score']                   
+            current_batch.points_by_victory += info['points_by_victory']
         
-        self.dq_network.save(self.filename) 
+                
+        torch.save(self.dq_network, self.filename + ".pt")
         self.state_transf_data.save(self.filename)
         
         batches.append(current_batch)            

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from model_sushi_go.game import SingleGame
+
+from model_sushi_go.game import MultiplayerGame
 
 from agents_sushi_go.random_agent import RandomAgent
 from agents_sushi_go.card_lover_agent import SashimiLoverAgent
@@ -25,81 +26,73 @@ from agents_sushi_go.card_lover_agent import ChopstickLoverAtFirstAgent
 from agents_sushi_go.q_learning_agent import QLearningAgentPhase1
 from agents_sushi_go.q_learning_agent import QLearningAgentPhase2
 from agents_sushi_go.q_learning_agent import QLearningAgentPhase3
-# from agents_sushi_go.deep_q_learning_agent_v2 import DeepQLearningAgentPrueba3
+from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase1
+from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase2
+from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase3
+from agents_sushi_go.deep_q_learning_agent import DoubleDeepQLearningAgentPhase1
 from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
 from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
 from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase3
 from agents_sushi_go.deep_q_learning_torch_agent import  DeepQLearningTorchAgentPhase1
 
-agent_to_test = DeepQLearningTorchAgentPhase1()
+num_players = 2
 
-agents = []
-agents.append(RandomAgent())
-# agents.append(RandomAgent())
-# agents.append(RandomAgent())
-# agents.append(RandomAgent())
+games_number = 300
+victories_by_player = [0] * num_players
+points_by_player = [0] * num_players
 
-games_number = 100
-victories_by_player = [0,0,0,0,0]
-points_by_player = [0,0,0,0,0]
-
-action_used = [0]*37
-
-action_used_by_turn = []
-
-for i in range(0,10):
-    action_used_by_turn.append([0]*37)
-
+agents = [DeepQLearningTorchAgentPhase1(), QLearningAgentPhase3()]
+    
 for i in range(0,games_number):
     
-    new_game = SingleGame("Original",agents)
+    new_game = MultiplayerGame("Original", num_players, chopsticks_phase_mode = True)
 
-    agent_to_test.set_player(new_game.get_player(0))
+    force_no_chopsticks_phase = []
+
+    for j in range(num_players):
+        agents[j].set_player(new_game.get_player(j))
+        force_no_chopsticks_phase.append(not agents[j].trained_with_chopsticks_phase())
 
     print ("Loop " + str(i) + ":\n")
     
+    second_card = [None] * len(agents)
+    
     while not new_game.is_finished():
-        if agent_to_test.trained_with_chopsticks_phase():
-            legal_actions_player0 = new_game.get_legal_actions_numbers()
-        else:
-            legal_actions_player0 = new_game.get_legal_actions()
-        
-        var  = agent_to_test.choose_action(legal_actions_player0)
-        
-        cards = var.get_pair_of_cards()
-        
-        action_number = var.get_action_number()
-        
-        turn = new_game.get_turn() - 1
-        
-        action_used[action_number] += 1
-        action_used_by_turn[turn][action_number] += 1
-       
-        reward = new_game.play_cards(cards)
-        
-        done = new_game.is_finished()
-        new_legal_actions = new_game.get_legal_actions()
-        
-        # agent_to_test.learn_from_previous_action(reward, done, new_legal_actions)
-        
-    # agent_to_test.save_training()
+                      
+        legal_actions_player = new_game.get_legal_actions(force_no_chopsticks_phase)
+               
+        cards = []
+        for k in range(0, num_players):
+            
+            if not agents[k].trained_with_chopsticks_phase():
+            
+                if new_game.is_in_chopsticks_phase():
+                    action = second_card[k]
+                   
+                else:
+                    double_action = agents[k].choose_action(legal_actions_player[k])
+            
+                    player_cards = double_action.get_pair_of_cards()                
+                    second_card[k] = player_cards[1]
+                    action = player_cards[0]
+            else:
+                action = agents[k].choose_action(legal_actions_player[k])
+                  
+            cards.append([action])   
+                        
+        reward = new_game.play_cards(cards) 
         
     winners_list = new_game.declare_winner()
     scores_list = new_game.report_scores()
     print (winners_list)
     print (scores_list)
     
-    for i in range(0,len(scores_list)):
-        if i in winners_list:
-            victories_by_player[i] += 1
-        points_by_player[i] += scores_list[i]
+    for m in range(0,num_players):
+        if m in winners_list:
+            victories_by_player[m] += 1
+        points_by_player[m] += scores_list[m]
     
 print ("Wins per player: ")
 print (victories_by_player)
 print ("Total points per player: " )
 print (points_by_player)
-
-print ("Actions used: " )
-
-for turn in action_used_by_turn:
-    print (turn)

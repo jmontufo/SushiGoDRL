@@ -223,7 +223,7 @@ class PG_Builder(object):
             self.state_transf_data = None
         
                 
-        self.filename = "PG_Reinforce_"
+        self.filename = "PG_Reinforce_bl"
         self.filename += str(num_players) + "p_"
         self.filename += state_type.__name__ + "_"
         self.filename += "lr" + str(learning_rate) + "_"

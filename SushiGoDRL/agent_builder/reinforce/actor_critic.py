@@ -68,9 +68,9 @@ class Memory(object):
         
         return len(self.__buffer)
 
-class PGReinforceLearnedBaseline(torch.nn.Module):
+class ActorCriticNetwork(torch.nn.Module):
 
-    def __init__(self, learning_rate, state_lr, state_type, action_size):
+    def __init__(self, learning_rate, critic_lr, state_type, action_size, discount):
         """
         Params
         ======
@@ -78,17 +78,16 @@ class PGReinforceLearnedBaseline(torch.nn.Module):
         n_outputs: mida de l'espai d'accions
         actions: array d'accions possibles
         """
-        super(PGReinforceLearnedBaseline, self).__init__()
+        super(ActorCriticNetwork, self).__init__()
         
         self.input_shape = state_type.get_number_of_observations()
         self.n_outputs = action_size
+        self.discount = discount
                     
         self.learning_rate = learning_rate
         
-        self.red_lineal = nn.Sequential(
+        self.actor = nn.Sequential(
             torch.nn.Linear(self.input_shape, 256, bias=True), 
-            # torch.nn.Tanh(), 
-            # torch.nn.Linear(64, 64, bias=True),
             torch.nn.Tanh(), 
             torch.nn.Linear(256, self.n_outputs, bias=True),
             torch.nn.Softmax(dim=-1))
@@ -97,16 +96,16 @@ class PGReinforceLearnedBaseline(torch.nn.Module):
         self.losses = []
         self.state_losses = []
         
-        self.state_lr = state_lr
+        self.critic_lr = critic_lr
         
-        self.red_state_value = nn.Sequential(
+        self.critic = nn.Sequential(
             torch.nn.Linear(self.input_shape, 256),
-            # torch.nn.ReLU(),
-            # torch.nn.Linear(256, 256),
             torch.nn.ReLU(),
-            torch.nn.Linear(256, 1))
+            # torch.nn.Linear(64, 64),
+            # torch.nn.ReLU(),
+            torch.nn.Linear(256, self.n_outputs))
         
-        self.optimizer_state_value = torch.optim.Adam(self.parameters(), lr=state_lr)
+        self.optimizer_critic = torch.optim.Adam(self.parameters(), lr=critic_lr)
         # print(self.red_lineal)
 
     def get_action_prob(self, state):
@@ -114,34 +113,11 @@ class PGReinforceLearnedBaseline(torch.nn.Module):
             state = np.array(state)
         state_t = torch.FloatTensor(state)
         
-        # print("state_t")
-        # print(state_t)
-        # print("action_probs")
-        # print(self.red_lineal(state_t))
-        return self.red_lineal(state_t)
-    
-    def get_action_probability(self, state, action):
-
-        if type(state) is tuple:
-            state = np.array(state)
-        state_t = torch.FloatTensor(state)
-                    
-        actions_probabilities = self.red_lineal(state_t)
-        
-        # print("actions_probabilities")
-        # print(actions_probabilities)
-        # print("action")
-        # print(action.reshape(-1,1))
-        return actions_probabilities.gather(1, action.reshape(-1,1))
+        return self.actor(state_t)
     
     def get_next_action(self, state, legal_actions):
         
-        # print("get_next_action")
         action_probs = self.get_action_prob(state).detach().numpy()
-        # print("action_probs")
-        # print(action_probs)
-        # print("legal_actions")
-        # print(legal_actions)
         
         is_legal_actions = np.zeros(self.n_outputs)
         for legal_action in legal_actions:
@@ -150,15 +126,9 @@ class PGReinforceLearnedBaseline(torch.nn.Module):
         for action in range(self.n_outputs):
             action_probs[action] = action_probs[action] * is_legal_actions[action]            
             
-        # print("action_probs 2")
-        # print(action_probs)
         prob_factor = 1 / sum(action_probs)
         action_probs = [prob_factor * p for p in action_probs]
-        # print("prob_factor")
-        # print(prob_factor)
 
-        # print("action_probs 3")
-        # print(action_probs)
         action_space = np.arange(self.n_outputs)
           
         if sum(action_probs) == 1:
@@ -168,113 +138,100 @@ class PGReinforceLearnedBaseline(torch.nn.Module):
         
         return action
 
-    def get_state_value(self, state):
-            
-    #         print("get_action_value")
-    #         print("\tstate")
-    #         print(state)
+    def get_action_state_value(self, state, action):
+
         if type(state) is tuple:
             state = np.array(state)
         state_t = torch.FloatTensor(state)
-            
-    #         print("\tresult")
-    #         print(self.red_critic(state_t))
-        return self.red_state_value(state_t)
+                    
+        actions_values = self.critic(state_t)
+        
+        return torch.gather(actions_values, 1, action)
     
-    def update(self, states_batch, actions_batch, rewards_batch, advantage_batch, has_decided_batch):
-        # print("update")
-        # print("states_batch")
-        # print(states_batch)
-        # print("actions_batch")
-        # print(actions_batch)
-        # print("rewards_batch")
-        # print(rewards_batch)
-        # print("advantage_batch")
-        # print(advantage_batch)
-        # print("has_decided_batch")
-        # print(has_decided_batch)
-        # print("states_batch[has_decided_batch]")
-        # print(states_batch[has_decided_batch])
+    def get_qvals(self, state):
         
+        if type(state) is tuple:
+            state = np.array(state)
+        state_t = torch.FloatTensor(state)
         
-        state_t = torch.FloatTensor(states_batch[has_decided_batch])
-        advantage_t = torch.FloatTensor(advantage_batch[has_decided_batch])
-        action_t = torch.LongTensor(actions_batch[has_decided_batch])
-        loss = self.calculate_loss(state_t, action_t, advantage_t) 
-        # print("loss")
-        # print(loss)
+        return self.critic(state_t)
+    
+    def update(self, states_batch, actions_batch, rewards_batch, new_states_batch, new_legal_actions_batch, dones_batch):
         
         self.optimizer.zero_grad() 
-        loss.backward()  
-        nn.utils.clip_grad_value_(self.red_lineal.parameters(), clip_value=0.5)
+        state_t = torch.FloatTensor(states_batch)
+        action_t = torch.LongTensor(actions_batch).reshape(-1,1)
         
-        # nn.utils.clip_grad_norm_(self.red_lineal.parameters(), max_norm=0.5, norm_type=2)
-
-        self.optimizer.step()
-    
+        loss = self.calculate_actor_loss(state_t, action_t) 
         self.losses.append(loss.detach().numpy())
+        loss.backward() 
+        self.optimizer.step()
         
-        self.update_state_value(states_batch, rewards_batch)
+        self.update_critic(states_batch, actions_batch, rewards_batch, new_states_batch, new_legal_actions_batch, dones_batch)
      
-    def update_state_value(self, states_batch, rewards_batch):
+        # self.update_loss.append(loss.detach().numpy())
+    def update_critic(self, states_batch, actions_batch, rewards_batch, new_states_batch, new_legal_actions_batch, dones_batch):
         # print("update")
         # print(rewards_batch)
+        self.optimizer_critic.zero_grad() 
         state_t = torch.FloatTensor(states_batch)
-        reward_t = torch.FloatTensor(rewards_batch)
-        loss = self.calculate_loss_state_value(state_t, reward_t) 
-        self.optimizer_state_value.zero_grad() 
-        loss.backward() 
-        self.optimizer_state_value.step()
-         
+        reward_t = torch.FloatTensor(rewards_batch) 
+        action_t = torch.LongTensor(actions_batch).reshape(-1,1)
+        new_states_t = torch.FloatTensor(new_states_batch)
+        new_legal_actions_t = torch.BoolTensor(new_legal_actions_batch)
+        dones_t = torch.BoolTensor(dones_batch)
         
+        loss = self.calculate_critic_loss(state_t, action_t, reward_t, new_states_t, new_legal_actions_t, dones_t) 
         self.state_losses.append(loss.detach().numpy())
+        loss.backward() 
+        self.optimizer_critic.step()
+         
+        # self.update_loss.append(loss.detach().numpy())
               
-    def calculate_loss(self, state_t, action_t, reward_t):
+    def calculate_actor_loss(self, state_t, action_t):
+                
+        action_probs = self.get_action_prob(state_t)
+        logprob = torch.log(action_probs)
+        selected_logprobs = self.get_action_state_value(state_t, action_t).detach() * \
+                                logprob[np.arange(len(action_t)), action_t]
         
-        # print("state_t")
-        # print(state_t.shape)
-        # print("action_t")
-        # print(action_t.shape)
-        # print("calculate_loss")
-        probs = self.get_action_probability(state_t, action_t)
-        # print("advantage_t")
-        # print(reward_t)
-        # print("probs")
-        # print(probs)
-        logprob = - torch.log(probs)
-        # 
-        # print("logprob")
-        # print(logprob)
-        
-        # print("action_t")
-        # print(action_t)
-        selected_logprobs = reward_t * logprob
-        # print("selected_logprobs")
-        # print(selected_logprobs)
-        loss = selected_logprobs.mean()
-        # print("loss")
-        # print(loss)
-        
+        loss = -selected_logprobs.mean()
         # print("loss\n" + str(loss))
-        return loss 
+        return loss     
     
     
-    def calculate_loss_state_value(self, state_t, reward_t):
+    def calculate_critic_loss(self, state_t, action_t, reward_t, new_states_t, new_legal_actions_t, dones_t):
         
         # print("state_t")
         # print(state_t)
-        # print("reward_t")
-        # print(reward_t)
+        # print("action_t")
+        # print(action_t)
+        # print("new_states_t")
+        # print(new_states_t)
+        qvals = self.get_action_state_value(state_t, action_t)
         
-        qvals = self.get_state_value(state_t)
         # print("qvals")
         # print(qvals)
+                
+        qvals_next = self.get_qvals(new_states_t)  
+        # print("qvals_next")
+        # print(qvals_next)      
+        # print("new_legal_actions_t")
+        # print(new_legal_actions_t)      
+        qvals_next[new_legal_actions_t] = -100000000
+        # print("qvals_next2")
+        # print(qvals_next)      
+        qvals_next = torch.max(qvals_next,
+                               dim=-1)[0].detach()        
+        qvals_next[dones_t] = 0
         
-        loss = torch.nn.MSELoss()(qvals, reward_t.reshape(-1,1))
-        # print("loss")
-        # print(loss)
+                       
+        expected_qvals = (self.discount * qvals_next) + reward_t
+        
+        loss = torch.nn.MSELoss()(qvals, expected_qvals.reshape(-1,1))       
+        
         return loss     
-    
+        
     def load(self, filename):
         
        return
@@ -284,7 +241,7 @@ class PGReinforceLearnedBaseline(torch.nn.Module):
         
        return
     
-class PGRLB_Builder(object):
+class AC_Builder(object):
 
     def __init__(self, num_players, versus_agents, state_type, total_episodes, 
                  learning_rate, discount, reference = "", previous_nn_filename = None):             
@@ -298,8 +255,10 @@ class PGRLB_Builder(object):
         self.versus_agents = versus_agents
         self.agents = [] 
         self.discount = discount
-            
-        self.memory = Memory(0, 4096)
+        
+        batch_size = 256
+        memory_size = 1024            
+        self.memory = Memory(batch_size, memory_size)
         
         for i in range(num_players - 1):
             self.agents.append(random.choice(versus_agents))    
@@ -311,14 +270,14 @@ class PGRLB_Builder(object):
         
         action_size = self.env.action_space.n
                 
-        self.pg_network = PGReinforceLearnedBaseline(learning_rate, 0.001, state_type, action_size)
+        self.ac_network = ActorCriticNetwork(learning_rate, 0.001, state_type, action_size, discount)
         
         if previous_nn_filename is not None:
             
             previous_episodes = previous_nn_filename.split("_")[-2]
             previous_episodes = int(previous_episodes)
             
-            self.pg_network.load(previous_nn_filename)
+            self.ac_network.load(previous_nn_filename)
             
             Q_input = open(previous_nn_filename + ".pkl", 'rb')
             self.state_transf_data = pickle.load(Q_input)
@@ -330,7 +289,7 @@ class PGRLB_Builder(object):
             self.state_transf_data = None
         
                 
-        self.filename = "PG_Reinforce_learned_bl"
+        self.filename = "AC_"
         self.filename += str(num_players) + "p_"
         self.filename += state_type.__name__ + "_"
         self.filename += "lr" + str(learning_rate) + "_"
@@ -373,7 +332,7 @@ class PGRLB_Builder(object):
                 episodes_batch_id = int(episode / 1000)
                 batch_filename = self.filename + "-" + str(episodes_batch_id)
                 
-                self.pg_network.save(batch_filename)  
+                self.ac_network.save(batch_filename)  
                 if self.state_transf_data is not None:
                     self.state_transf_data.save(batch_filename)
                                 
@@ -381,14 +340,9 @@ class PGRLB_Builder(object):
                 current_batch = BatchInfo()
                 
                 save_batches(batches, batch_filename + "-batches_info.txt")   
+                
+            while not done:                   
                         
-                
-            trajectory = []       
-            state_trajectory = []
-            while not done:    
-                
-                # print("state")                            
-                # print(state)      
                 legal_actions = self.env.action_space.available_actions                   
                                     
                 if self.state_transf_data != None:
@@ -416,82 +370,32 @@ class PGRLB_Builder(object):
                                         
                         transformed_state.append(state_attribute)                
                     # print("aaaaa\n" + str(np.array(transformed_state)) )
-                    # print("transformed_state")                            
-                    # print(transformed_state)      
-                    action = self.pg_network.get_next_action(np.array(transformed_state), legal_actions)
+                    action = self.ac_network.get_next_action(np.array(transformed_state), legal_actions)
                 else:
                     action = random.choice(legal_actions)
         
                     
                 new_state, reward, done, info = self.env.step(action)        
-                                
-                trajectory.append([state, action, reward, len(legal_actions) > 1])                
-                # print("trajectory")
-                # print(trajectory)
-                if not self.memory.is_full():                    
-                    self.memory.add(state)
-                               
+                                                                                      
+                new_legal_actions = self.env.action_space.available_actions
+                legal_actions_array = np.full(self.env.action_space.n, True)
+                
+                for legal_action in new_legal_actions:
+                    legal_actions_array[legal_action] = False
+                                    
+                self.memory.add([state, action, reward, new_state, legal_actions_array, done])
+                                                          
                 episode_rewards += reward
                 
                 state = new_state
             
-            if self.state_transf_data != None:
-                                                        
-                states_batch = np.array([each[0] for each in trajectory]).astype(float)
-                actions_batch = np.array([each[1] for each in trajectory])
-                rewards_batch = np.array([each[2] for each in trajectory]) 
-                has_decided_batch = np.array([each[3] for each in trajectory]) 
-                # print("states_batch")
-                # print(states_batch)
-                r = 0
-                for i in reversed(range(len(rewards_batch))):
-                   # compute the return
-                   r = rewards_batch[i] + self.discount * r
-                   rewards_batch[i] = r
-                 
-                # print("rewards_batch")
-                # print(rewards_batch)
-                state_pred = (self.pg_network.get_state_value(states_batch).detach().numpy())
-                # print("state_pred")
-                # print(state_pred)
-                advantage_batch = rewards_batch.reshape(-1,1) - state_pred
+            if self.memory.is_full() and self.state_transf_data == None:     
                 
-                # print("advantage_batch")
-                # print(advantage_batch)
-                # print("trajectory" + str(trajectory))
-        
-                # print("rewards_batch" + str(rewards_batch))
-                # print("rewards_batch\n\n" + str(rewards_batch))
-                
-                distributions = self.state_type.get_expected_distribution()
-                
-                for i, distribution in enumerate(distributions):
-                        
-                    state_attribute = states_batch[:,i]
-                    
-                    if distribution == 'Poisson':
-                        
-                        # add 1 as all the attributes begin by 0, and is not allowed in the Box-Cox transformation
-                        state_attribute = state_attribute + 1                
-                        state_attribute = stats.boxcox(state_attribute, self.state_transf_data.fitted_lambdas[i])
-                                                                
-                    state_attribute -= self.state_transf_data.means[i]
-                    state_attribute /= self.state_transf_data.stDevs[i]
-                                    
-                    states_batch[:,i] = state_attribute                
-                # print("aqui\n\n")
-                self.pg_network.update(states_batch, actions_batch, rewards_batch, advantage_batch, has_decided_batch)  
-            
-                rewards.append(episode_rewards)
-                current_batch.total_reward += episode_rewards
-
-                # print("episode_rewards" + str(episode_rewards))                
-            elif self.memory.is_full():            
-            
                 self.state_transf_data = StateTransformationData(self.state_type)
                 
                 buffer = self.memory.get_buffer()
-                states = np.array(buffer)                
+                states = np.array([each[0] for each in buffer])
+                
                 
                 for i, distribution in enumerate(distributions):
                     
@@ -513,21 +417,64 @@ class PGRLB_Builder(object):
                         self.state_transf_data.means.append(np.mean(state_attribute,0))
                         self.state_transf_data.stDevs.append(np.std(state_attribute,0))
                         
-            trajectory = []
+                        
+                           
+            if self.memory.has_enough_experiments() and self.state_transf_data != None:
+
+                batch = self.memory.sample()                 
+                                                          
+                states_batch = np.array([each[0] for each in batch]).astype(float)
+                actions_batch = np.array([each[1] for each in batch])
+                rewards_batch = np.array([each[2] for each in batch]) 
+                new_states_batch = np.array([each[3] for each in batch]).astype(float)
+                new_actions_batch = np.array([each[4] for each in batch])
+                dones_batch = np.array([each[5] for each in batch])
+                
+                distributions = self.state_type.get_expected_distribution()
+                
+                for i, distribution in enumerate(distributions):
+                    state_attribute = states_batch[:,i]
+                    new_state_attribute = new_states_batch[:,i]
+                    
+                    if distribution == 'Poisson':
+                        
+                        # add 1 as all the attributes begin by 0, and is not allowed in the Box-Cox transformation
+                        state_attribute = state_attribute + 1                
+                        state_attribute = stats.boxcox(state_attribute, self.state_transf_data.fitted_lambdas[i])
+                        
+                        new_state_attribute = new_state_attribute + 1                
+                        new_state_attribute = stats.boxcox(new_state_attribute, self.state_transf_data.fitted_lambdas[i])
+                    
+                                        
+                    state_attribute -= self.state_transf_data.means[i]
+                    state_attribute /= self.state_transf_data.stDevs[i]
+                                    
+                    states_batch[:,i] = state_attribute                
+                    
+                    new_state_attribute -= self.state_transf_data.means[i]
+                    new_state_attribute /= self.state_transf_data.stDevs[i]
+                    
+                    new_states_batch[:,i] = new_state_attribute    
+              
+                self.ac_network.update(states_batch, actions_batch, rewards_batch, new_states_batch, new_actions_batch, dones_batch)  
+            
+                rewards.append(episode_rewards)
+                current_batch.total_reward += episode_rewards
+         
         
-        self.pg_network.save(self.filename) 
+        self.ac_network.save(self.filename) 
         self.state_transf_data.save(self.filename)
         
         batches.append(current_batch)                
         plt.figure(figsize=(36, 48))
         
         plt.subplot(2, 1, 1)
-        plt.plot(self.pg_network.losses, label='loss')
+        plt.plot(self.ac_network.losses, label='loss')
         plt.title('Gradient Loss Function Evolution')
         plt.legend()
         
         plt.subplot(2, 1, 2)
-        plt.plot(self.pg_network.state_losses, label='loss')
+        plt.plot(self.ac_network.state_losses, label='loss')
         plt.title('State Loss Function Evolution')
         plt.legend()
         

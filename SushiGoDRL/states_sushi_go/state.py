@@ -41,5 +41,5 @@ class State(ABC):
         pass
             
     def trained_with_chopsticks_phase():
-        return True
+        return False
     

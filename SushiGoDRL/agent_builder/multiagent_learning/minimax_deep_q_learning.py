@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# -*- coding: utf-8 -*-
-
-
 import numpy as np
 from scipy import stats
 import random
@@ -10,42 +7,14 @@ import pickle
 
 from agent_builder.utils import *
 
-from tensorflow.keras.backend import clear_session
-from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Dense
-from tensorflow.keras.models import model_from_json
-from memory_profiler import profile
+import torch
+import torch.nn as nn
+
 from collections import deque
 
-from states_sushi_go.complete_state_fixed import CompleteState
-from agents_sushi_go.random_agent import RandomAgent
-from agents_sushi_go.card_lover_agent import SashimiLoverAgent
-from agents_sushi_go.card_lover_agent import SashimiSuperLoverAgent
-from agents_sushi_go.card_lover_agent import SashimiHaterAgent
-from agents_sushi_go.card_lover_agent import TempuraLoverAgent
-from agents_sushi_go.card_lover_agent import TempuraSuperLoverAgent
-from agents_sushi_go.card_lover_agent import DumplingLoverAgent
-from agents_sushi_go.card_lover_agent import DumplingSuperLoverAgent
-from agents_sushi_go.card_lover_agent import MakiLoverAgent
-from agents_sushi_go.card_lover_agent import MakiSuperLoverAgent
-from agents_sushi_go.card_lover_agent import MakiHaterAgent
-from agents_sushi_go.card_lover_agent import WasabiLoverAgent
-from agents_sushi_go.card_lover_agent import WasabiLoverAtFirstAgent
-from agents_sushi_go.card_lover_agent import NigiriLoverAgent
-from agents_sushi_go.card_lover_agent import NigiriSuperLoverAgent
-from agents_sushi_go.card_lover_agent import PuddingLoverAgent
-from agents_sushi_go.card_lover_agent import PuddingSuperLoverAgent
-from agents_sushi_go.card_lover_agent import PuddingHaterAgent
-from agents_sushi_go.card_lover_agent import ChopstickLoverAgent
-from agents_sushi_go.card_lover_agent import ChopstickHaterAgent
-from agents_sushi_go.card_lover_agent import ChopstickLoverAtFirstAgent
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase1
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase2
-from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase1
-from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase2
-from agents_sushi_go.deep_q_learning_agent import DoubleDeepQLearningAgentPhase1
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
+import matplotlib.pyplot as plt
+
+import gym
 
 class StateTransformationData(object):
     
@@ -99,51 +68,81 @@ class Memory(object):
         
         return len(self.__buffer)
 
-class DQNetwork(object):
+class DQNetwork(torch.nn.Module):
     
-    def __init__(self, learning_rate, state_type, action_size, batch_size):
+    def __init__(self, learning_rate, state_type, action_size, batch_size, discount):
+        
+        super(DQNetwork, self).__init__()
         
         self.__learning_rate = learning_rate
+        self.__discount = discount
         self.__state_type = state_type        
         self.__batch_size = batch_size
 
+        self.state_losses = []
+        
         self.__state_size = state_type.get_number_of_observations()
         self.__action_size = action_size
         
-        self.__q_network = self.__define_model()
+        self.__q_network = self.__define_model()        
         self.__target_network = self.__define_model()
+        
+        self.__optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
         
 
     def __define_model(self):
                
-        model = Sequential()
-       
-        model.add(Dense(256, input_dim=self.__state_size, activation='relu'))
-        # model.add(Dense(4096, activation='relu'))        
-        model.add(Dense(self.__action_size, activation='linear'))                
+        net = nn.Sequential(
+            torch.nn.Linear(self.__state_size, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, self.__action_size * self.__action_size))
         
-        model.compile(loss='mse', optimizer='adam')
-        
-        print(model.summary())
-        
-        return model
+        return net
        
     
     def __get_Q(self, state):
+            
+        if type(state) is tuple:
+            state = np.array(state)
+        state_t = torch.FloatTensor(state)
         
-        adapted_state = state.reshape(-1, len(state))
-        
-        return self.__q_network.predict(adapted_state)[0]
+        return self.__q_network(state_t)
     
     
-    def get_next_action(self, state, legal_actions):
+    def __get_target_Q(self, state):
+            
+        if type(state) is tuple:
+            state = np.array(state)
+        state_t = torch.FloatTensor(state)
         
-        q_values = self.__get_Q(state)
+        return self.__target_network(state_t)
         
+    
+    def get_action_state_value(self, state, actions_pair):
+
+        if type(state) is tuple:
+            state = np.array(state)
+        state_t = torch.FloatTensor(state)
+                    
+        actions_values = self.__q_network(state_t)
+                
+        return torch.gather(actions_values, 1, actions_pair)
+    
+    def get_next_action(self, state, legal_actions, rival_legal_actions):
+        q_values = self.__get_Q(state).detach()
+                
         legal_actions_values = []
         
         for action in legal_actions:
-            legal_actions_values.append(q_values[action])
+            action_values = []
+            
+            for rival_action in rival_legal_actions:
+                actions_pair = action + rival_action * self.__action_size
+                action_values.append(q_values[actions_pair])
+            
+            legal_actions_values.append(np.amin(action_values))
             
         max_value = np.amax(legal_actions_values)           
         best_actions = np.argwhere(legal_actions_values == max_value).flatten().tolist()        
@@ -151,73 +150,110 @@ class DQNetwork(object):
         
         return chosen_action
     
-    @profile
-    def update(self, states_batch, actions_batch, rewards_batch, new_states_batch, new_legal_actions_batch, dones_batch):
+    
+    def update(self, states_batch, actions_batch, rewards_batch, 
+                     new_states_batch, new_legal_actions_batch, 
+                     rival_new_legal_actions_batch, dones_batch):
            
-        target = self.__q_network.predict(states_batch)           
-             
-        new_states_values = self.__target_network.predict(new_states_batch)
-      
-        for experiment in range(self.__batch_size):
-            
-            experiment_state = states_batch[experiment]
-            experiment_action = actions_batch[experiment]
-            experiment_reward = rewards_batch[experiment]
-            experiment_done = dones_batch[experiment]
-            experiment_new_state = new_states_batch[experiment]
-            experiment_new_legal_actions = new_legal_actions_batch[experiment]
-            experiment_new_states_values = new_states_values[experiment]
+       self.__optimizer.zero_grad() 
+                                     
+       state_t = torch.FloatTensor(states_batch)
+       reward_t = torch.FloatTensor(rewards_batch) 
+       action_t = torch.LongTensor(actions_batch).reshape(-1,1)
+       new_states_t = torch.FloatTensor(new_states_batch)
+       dones_t = torch.BoolTensor(dones_batch)
+       
+       loss = self.calculate_loss(state_t, action_t, reward_t, new_states_t, 
+                                  new_legal_actions_batch, 
+                                  rival_new_legal_actions_batch, dones_t) 
+       self.state_losses.append(loss.detach().numpy())
+       loss.backward() 
+       self.__optimizer.step()
+       
+       
+    def calculate_loss(self, state_t, action_t, reward_t, new_states_t, 
+                       new_legal_actions_batch, rival_new_legal_actions_batch, 
+                       dones_t):
+        
+        qvals = self.get_action_state_value(state_t, action_t)
                  
-            experiment_new_value = experiment_reward
+        qvals_next = self.__get_target_Q(new_states_t).detach().numpy()
+        
+        new_legal_actions_filtered = []
+        for i in range(len(new_legal_actions_batch)):
+            new_legal_actions_bool = np.full(self.__action_size * self.__action_size, True)
             
-            if not experiment_done:
-                                            
-                new_legal_actions_values = []
+            new_legal_actions = new_legal_actions_batch[i]
+            rival_new_legal_actions = rival_new_legal_actions_batch[i]
+            for action in new_legal_actions:
+                action_values = []
+                for rival_action in rival_new_legal_actions:
+                    actions_pair = action + rival_action * self.__action_size
+                    action_values.append(qvals_next[i][actions_pair])
                 
-                for new_legal_action in experiment_new_legal_actions:
-                    new_legal_actions_values.append(experiment_new_states_values[new_legal_action])            
-                
-                experiment_new_value += self.__learning_rate * np.amax(new_legal_actions_values)
-                            
-            target[experiment][experiment_action] = experiment_new_value
+                # print("action_values")
+                # print(action_values)
+                min_for_action = np.amin(action_values)
+                # print("min_for_Action")
+                # print(min_for_action)
+                for rival_action in rival_new_legal_actions:
+    
+                    actions_pair = action + rival_action * self.__action_size 
+                    
+                    # print("qvals_next[actions_pair]")
+                    # print(qvals_next[i][actions_pair])
+                    if qvals_next[i][actions_pair] == min_for_action:
+                        new_legal_actions_bool[actions_pair] = False
             
-        self.__q_network.fit(states_batch, target, epochs=1, verbose=False)    
-        clear_session()
-            
+            new_legal_actions_filtered.append(new_legal_actions_bool)       
+        
+        new_legal_actions_t = torch.BoolTensor(new_legal_actions_filtered)
+        
+        # print("qvals_next")
+        # print(qvals_next)
+        qvals_next[new_legal_actions_t] = -100000000
+
+        qvals_next = torch.FloatTensor(qvals_next)
+        
+        qvals_next = torch.max(qvals_next,
+                               dim=-1)[0].detach()  
+     
+        
+        qvals_next[dones_t] = 0
+        
+        expected_qvals = self.__discount * qvals_next + reward_t
+        
+        loss = torch.nn.MSELoss()(qvals, expected_qvals.reshape(-1,1))       
+        
+        return loss  
+    
+    
     def update_target_network(self):
         
-        self.__target_network.set_weights(self.__q_network.get_weights())
+        self.__target_network.load_state_dict(self.__q_network.state_dict())
         
-    def load(self, filename):
+    # def load(self, filename):
         
-        json_file = open(filename + '.json', 'r')
-        loaded_model_json = json_file.read()
-        json_file.close()
+    #     self.__q_network.load_state_dict(torch.load(filename + ".pt"))
+    #     self.eval()
         
-        self.__q_network = model_from_json(loaded_model_json)
-        self.__q_network.load_weights(filename + ".h5")        
-        self.__q_network.compile(loss='mse', optimizer='adam')
-        
-        self.update_target_network()
+    #     self.__target_network.load_state_dict(self.__q_network.state_dict())
                 
-    def save(self, filename):
+    # def save(self, filename):
         
-        model_json = self.__q_network.to_json()
-        
-        with open(filename + ".json", "w") as json_file: 
-            json_file.write(model_json)
-            
-        self.__q_network.save_weights(filename + ".h5")
+    #     torch.save(self.__q_network.state_dict(), filename + ".pt")
         
  
-class DQL_Builder(object):
+class MinimaxDQL_Builder(object):
 
     def __init__(self, num_players, versus_agents, state_type, total_episodes, 
-                 max_epsilon, min_epsilon, decay_rate, learning_rate, 
-                 reference = "", previous_nn_filename = None):             
+                 max_epsilon, min_epsilon, decay_rate, learning_rate, discount,
+                 reference = "", previous_nn_filename = None, reward_by_win = 0):             
                     
         self.total_episodes = total_episodes
         
+        # Minimax only works for two players games
+        assert(num_players == 2)
         self.num_players = num_players
         
         self.state_type = state_type
@@ -225,6 +261,7 @@ class DQL_Builder(object):
         self.max_epsilon = max_epsilon
         self.min_epsilon = min_epsilon
         self.decay_rate = decay_rate        
+        self.reward_by_win = reward_by_win
         
         batch_size = 256
         memory_size = 1024         
@@ -238,21 +275,23 @@ class DQL_Builder(object):
             
             
         chopsticks_phase_mode = state_type.trained_with_chopsticks_phase()
-        
+       
         self.memory = Memory(batch_size, memory_size)
         self.env = gym.make('sushi-go-v0', agents = self.agents, state_type = state_type,
-        chopsticks_phase_mode = chopsticks_phase_mode)
+        chopsticks_phase_mode = chopsticks_phase_mode, reward_by_win = self.reward_by_win)
+        
         
         action_size = self.env.action_space.n
                 
-        self.dq_network = DQNetwork(learning_rate, state_type, action_size, batch_size)
+        self.dq_network = DQNetwork(learning_rate, state_type, action_size, batch_size, discount)
         
         if previous_nn_filename is not None:
             
             previous_episodes = previous_nn_filename.split("_")[-2]
             previous_episodes = int(previous_episodes)
-            
-            self.dq_network.load(previous_nn_filename)
+                        
+            self.dq_network = torch.load(previous_nn_filename + ".pt")
+            # self.dq_network.eval()
             
             Q_input = open(previous_nn_filename + ".pkl", 'rb')
             self.state_transf_data = pickle.load(Q_input)
@@ -264,10 +303,12 @@ class DQL_Builder(object):
             self.state_transf_data = None
         
                 
-        self.filename = "Deep_Q_Learning_"
+        self.filename = "MinimaxDQL_"
         self.filename += str(num_players) + "p_"
         self.filename += state_type.__name__ + "_"
         self.filename += "lr" + str(learning_rate) + "_"
+        self.filename += "d" + str(discount) + "_"
+        self.filename += "wr" + str(reward_by_win) + "_"
         self.filename += str(previous_episodes + total_episodes) + "_"
         self.filename += reference
         
@@ -302,18 +343,23 @@ class DQL_Builder(object):
             done = False
             episode_rewards = 0
             
+            rival_new_legal_actions = list(range(8))
+            
             if episode > 0 and episode % 1000 == 0:
                                 
                 current_batch.epsilon_at_end = epsilon
                 
                 print(str(episode) + " episodes.")
                 print("Reward: " + str(current_batch.total_reward))
+                print("Score: " + str(current_batch.points))
+                print("Wins: " + str(current_batch.points_by_victory))
                 print("Epsilon: " + str(current_batch.epsilon_at_end))
+                
                 
                 episodes_batch_id = int(episode / 1000)
                 batch_filename = self.filename + "-" + str(episodes_batch_id)
                 
-                self.dq_network.save(batch_filename)  
+                torch.save(self.dq_network, batch_filename + ".pt")
                 if self.state_transf_data is not None:
                     self.state_transf_data.save(batch_filename)
                                 
@@ -328,7 +374,7 @@ class DQL_Builder(object):
                 
                 rewards_mean = sum(rewards[-self.update_target_freq:]) / self.update_target_freq
                 rewards_by_target_update.append(rewards_mean)
-                print ("Score over time: " +  str(rewards_mean))
+                print ("Reward over time: " +  str(rewards_mean))
                         
             while not done:     
                         
@@ -363,7 +409,7 @@ class DQL_Builder(object):
                                         
                         transformed_state.append(state_attribute)                
                          
-                    action = self.dq_network.get_next_action(np.array(transformed_state), legal_actions)
+                    action = self.dq_network.get_next_action(np.array(transformed_state), legal_actions, rival_new_legal_actions)
         
                 else:
                     
@@ -373,8 +419,24 @@ class DQL_Builder(object):
                 new_state, reward, done, info = self.env.step(action)        
                                                   
                 new_legal_actions = self.env.action_space.available_actions
+                rival_new_legal_actions = info['rival_legal_actions']
+                # print("turn")
+                # print(info['turn'])
+                # print("phase")
+                # print(info['phase'])
+                # print("rival_new_legal_actions")
+                # print(rival_new_legal_actions)
+                rival_action = info['rival_action']
+                
+                # print(action)
+                # print("rival_action")
+                # print(rival_action)
+               
+                action = action + rival_action * self.env.action_space.n
                                     
-                self.memory.add([state, action, reward, new_state, new_legal_actions, done])
+                self.memory.add([state, action, reward, new_state, 
+                                 new_legal_actions, rival_new_legal_actions, 
+                                 done])
                                
                 episode_rewards += reward
                 
@@ -416,8 +478,9 @@ class DQL_Builder(object):
                 actions_batch = np.array([each[1] for each in batch])
                 rewards_batch = np.array([each[2] for each in batch]) 
                 new_states_batch = np.array([each[3] for each in batch]).astype(float)
-                new_actions_batch = np.array([each[4] for each in batch], dtype=object)
-                dones_batch = np.array([each[5] for each in batch])
+                new_actions_batch = np.array([each[4] for each in batch])
+                rival_new_actions_batch = np.array([each[5] for each in batch])
+                dones_batch = np.array([each[6] for each in batch])
                 
                 distributions = self.state_type.get_expected_distribution()
                 
@@ -446,17 +509,29 @@ class DQL_Builder(object):
                     
                     new_states_batch[:,i] = new_state_attribute    
                 
-                self.dq_network.update(states_batch, actions_batch, rewards_batch, new_states_batch, new_actions_batch, dones_batch)  
+                self.dq_network.update(states_batch, actions_batch,
+                                       rewards_batch, new_states_batch, 
+                                       new_actions_batch, 
+                                       rival_new_actions_batch,dones_batch)  
             
             epsilon = self.min_epsilon + (self.max_epsilon - self.min_epsilon) * np.exp(-self.decay_rate * episode) 
               
             rewards.append(episode_rewards)
-            current_batch.total_reward += episode_rewards
+            current_batch.total_reward += episode_rewards         
+            current_batch.points += info['score']                   
+            current_batch.points_by_victory += info['points_by_victory']
         
-        self.dq_network.save(self.filename) 
+                
+        torch.save(self.dq_network, self.filename + ".pt")
         self.state_transf_data.save(self.filename)
         
-        batches.append(current_batch)                
+        batches.append(current_batch)            
+        plt.figure(figsize=(36, 48))
+          
+        plt.subplot(2, 1, 2)
+        plt.plot(self.dq_network.state_losses, label='loss')
+        plt.title('State Loss Function Evolution')
+        plt.legend()    
         
         save_batches(batches, self.filename + "-batches_info.txt")   
                              

@@ -32,6 +32,7 @@ class SushiGoEnv(gym.Env):
         else:
             self.__action_space = DynamicSpace(37)
             
+       
         self.observation_space = spaces.Box(lows, highs, dtype=np.int32)
         
         self.setup = setup
@@ -39,6 +40,7 @@ class SushiGoEnv(gym.Env):
         self.reward_by_win = reward_by_win
         self.chopsticks_phase_mode = chopsticks_phase_mode
         
+       
         self.game = SingleGame(self.setup, self.agents, reward_by_win, 
                                chopsticks_phase_mode)    
         
@@ -47,7 +49,7 @@ class SushiGoEnv(gym.Env):
           
         player = self.game.get_player(0)
         
-        reward = self.game.play_action_number(action)
+        reward, rivals_actions = self.game.play_action_number(action)
         
         observation = self.state_type.build_by_player(player).get_as_observation()        
         done = self.game.is_finished()
@@ -55,12 +57,24 @@ class SushiGoEnv(gym.Env):
         info = {}
         if done:
             winners = self.game.declare_winner()
+            scores =  self.game.report_scores()
             
             if 0 in winners:
                 info['points_by_victory'] = 1 / len(winners)
             else :
                 info['points_by_victory'] = 0
-                    
+                
+            info['score'] = scores[0]
+            
+            info['winners'] = winners
+            info['all_scores'] = scores
+            
+        info['rival_legal_actions'] = self.game.get_rival_legal_actions_numbers()
+        info['rival_action'] = rivals_actions[0]
+        info['phase'] = self.game.get_phase()                
+        info['turn'] = self.game.get_turn()                
+        info['round'] = self.game.get_round()
+                
         return observation, reward, done, info;
       
     @property

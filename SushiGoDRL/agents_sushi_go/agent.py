@@ -30,7 +30,7 @@ class Agent(ABC):
                 self.__chopsticks_phase_mode = game.is_chopsticks_phase_mode()
                        
     @abstractmethod
-    def choose_action(self, legal_actions):
+    def choose_action(self, legal_actions, rival_legal_actions = None):
         pass
     
     @abstractmethod

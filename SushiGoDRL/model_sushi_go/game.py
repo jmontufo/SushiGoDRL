@@ -25,6 +25,8 @@ class Game(ABC):
         self.__turn = 1
         self.__phase = 1
         
+        self.previous_score_difference = [0] * num_players
+        
         self.__log = []           
     
     def __init_deck(self):
@@ -220,7 +222,11 @@ class Game(ABC):
         return legal_actions
     
     def __get_legal_actions_numbers(self, legal_actions):
+        
+        # print("legal_actions")
+        # print(legal_actions)
         if self.is_chopsticks_phase_mode():
+            # print("is_chopsticks_phase_mode")
             legal_actions_numbers = []
             for card_type in legal_actions:
                 if card_type is None:
@@ -332,11 +338,12 @@ class Game(ABC):
                         
     def __score_victory(self):
                 
-        winners = self.declare_winner()
-             
-        winner_reward = self.get_reward_by_win() / len(winners)
-        for winner_position in winners:
-            self.get_player(winner_position).add_reward(winner_reward)
+        if self.get_reward_by_win() > 0:
+            winners = self.declare_winner()
+                 
+            winner_reward = self.get_reward_by_win() / len(winners)
+            for winner_position in winners:
+                self.get_player(winner_position).add_reward(winner_reward)
                         
     def __get_players_puddings(self):
         
@@ -380,8 +387,21 @@ class Game(ABC):
         for player in self.get_players():
             scores_list.append(player.get_current_score())
             
-        return(scores_list)
-    
+        return(scores_list)    
+        
+    def zero_sum_reward(self, player_num):
+        
+        scores_list = self.report_scores()
+        
+        current_score_difference = scores_list[player_num]
+        scores_list[player_num] = -10000
+        current_score_difference -= max(scores_list)
+        
+        reward = current_score_difference - self.previous_score_difference[player_num]
+        self.previous_score_difference[player_num] = current_score_difference
+        
+        return reward       
+        
     def __distribute_points(self, values, function, points, update = None):
         
         players_numbers = Game.__find_all_in_list(values, function)
@@ -454,15 +474,36 @@ class SingleGame(Game):
                 
         return self._Game__get_legal_actions_of_player(0, force_no_chopsticks_phase)
     
+    def get_rival_legal_actions(self, force_no_chopsticks_phase = False):
+         
+        return self._Game__get_legal_actions_of_player(1, force_no_chopsticks_phase)
+                   
+    
     def get_legal_actions_numbers(self, force_no_chopsticks_phase = False):
         
+        # print ("player_legal_actions")
         return self._Game__get_legal_actions_numbers(self.get_legal_actions(force_no_chopsticks_phase))
+   
+    def get_rival_legal_actions_numbers(self, force_no_chopsticks_phase = False):
+        
+        if self.get_turn() > 1:
+            rival_legal_actions = self.get_rival_legal_actions(force_no_chopsticks_phase)
+            # print ("rival_legal_actions")
+            # print (rival_legal_actions)
+            return self._Game__get_legal_actions_numbers(rival_legal_actions)
+        else:
+            if self.is_chopsticks_phase_mode():
+                return list(range(CARD_TYPES.get_num_types_of_card() + 1))
+            else:
+                return list(range(36))
     
     def play_cards(self, cards):
        
         try:
             
-            self._Game__play_player_cards(0, cards)                     
+            self._Game__play_player_cards(0, cards)    
+
+            rivals_actions = []                 
             
             for agent_index, agent in enumerate(self.__get_agents()):
                     
@@ -490,11 +531,14 @@ class SingleGame(Game):
                 else:
                     action = agent.choose_action(legal_actions)
                              
-                
                 self.get_log().append("Action chosen:")            
                 self.get_log().append(str(action))
                 if self.is_chopsticks_phase_mode():
                     cards = [action]
+                    if action == None:
+                        rivals_actions.append(8)
+                    else:                        
+                        rivals_actions.append(action.get_number())
                 else:
                     cards = action.get_pair_of_cards()
                 
@@ -506,7 +550,10 @@ class SingleGame(Game):
             
             self._Game__finish_turn()                                                       
             
-            return self.get_player(0).get_last_action_reward()
+            if self.get_reward_by_win() >= 0:
+                return self.get_player(0).get_last_action_reward(), rivals_actions
+            else:
+                return self.zero_sum_reward(0), rivals_actions
         
         except Exception as inst:
             
@@ -536,26 +583,31 @@ class SingleGame(Game):
         
 class MultiplayerGame(Game):
     
-    def __init__(self, setup = "Original", num_players = 2, reward_by_win = 0):
+    def __init__(self, setup = "Original", num_players = 2, reward_by_win = 0,
+                 chopsticks_phase_mode = False):
         
-        super(MultiplayerGame, self).__init__(setup, num_players, reward_by_win)       
+        super(MultiplayerGame, self).__init__(setup, num_players, reward_by_win, 
+                                              chopsticks_phase_mode)       
             
     
-    def get_legal_actions(self):
+    def get_legal_actions(self, force_no_chopsticks_phase ):
         
+        if force_no_chopsticks_phase == None:
+            force_no_chopsticks_phase = [False] * self.get_num_players()
+            
         legal_actions_of_players = []
         
         for player_number in range(0, self.get_num_players()):
         
-            legal_actions =  self._Game__get_legal_actions_of_player(player_number)  
+            legal_actions =  self._Game__get_legal_actions_of_player(player_number, force_no_chopsticks_phase[player_number])  
             legal_actions_of_players.append(legal_actions)
             
         return legal_actions_of_players
     
     
-    def get_legal_actions_numbers(self):
+    def get_legal_actions_numbers(self, force_no_chopsticks_phase):
         
-        legal_actions_by_player = self.get_legal_actions()
+        legal_actions_by_player = self.get_legal_actions(force_no_chopsticks_phase)
         
         legal_actions_numbers_of_players = []
         
@@ -568,7 +620,6 @@ class MultiplayerGame(Game):
               
                        
     def play_cards(self, cards):
-               
         try:
             
             for player_number in range(0, self.get_num_players()):
@@ -580,15 +631,18 @@ class MultiplayerGame(Game):
                
             rewards = []       
             
-            for player_number in range(0, self.get_num_players()):                
-                rewards.append(self.get_player(player_number).get_last_action_reward())
-                
+            for player_number in range(0, self.get_num_players()):
+                if self.get_reward_by_win() >= 0:                
+                    rewards.append(self.get_player(player_number).get_last_action_reward())
+                else:
+                    rewards.append(self.zero_sum_reward(player_number))
+                            
             return rewards
                      
         except Exception as inst:
             
-            for line in self.get_log():
-                print(line)
+            # for line in self.get_log():
+            #     print(line)
             
             raise inst        
      
@@ -596,9 +650,14 @@ class MultiplayerGame(Game):
         
         cards_by_player = []
         
-        for player_number in range(0, self.get_num_players()):
+        for player_number in range(self.get_num_players()):
             player_action = action[player_number]
-            cards = player_action.get_pair_of_cards()
+            
+            if self.is_chopsticks_phase_mode():
+                cards = [player_action]
+            else:
+                cards = player_action.get_pair_of_cards()
+                
             cards_by_player.append(cards)
         
         return self.play_cards(cards_by_player)
@@ -609,11 +668,39 @@ class MultiplayerGame(Game):
         actions_by_player = []
         
         for player_number in range(0, self.get_num_players()):
+            
             player_action_number = number[player_number]
-            action = ActionManager.action_from_number(player_action_number)
+            
+            if self.is_chopsticks_phase_mode():
+                if player_action_number < CARD_TYPES.get_num_types_of_card():
+                    action = CARD_TYPES.get_card_types_by_number()[player_action_number]
+                else:
+                    action = None
+            else:
+                action = ActionManager.action_from_number(player_action_number)
+            
             actions_by_player.append(action)
                     
         return self.play_action(actions_by_player)
+    
+    def get_rival_legal_actions(self, player_num, force_no_chopsticks_phase = False):
+         
+        return self._Game__get_legal_actions_of_player((player_num + 1) % self.get_num_players(), 
+                                                       force_no_chopsticks_phase)
+                   
+    
+    def get_rival_legal_actions_numbers(self, player_num, force_no_chopsticks_phase = False):
+        
+        if self.get_turn() > 1:
+            rival_legal_actions = self.get_rival_legal_actions(player_num, force_no_chopsticks_phase)
+            # print ("rival_legal_actions")
+            # print (rival_legal_actions)
+            return self._Game__get_legal_actions_numbers(rival_legal_actions)
+        else:
+            if self.is_chopsticks_phase_mode():
+                return list(range(CARD_TYPES.get_num_types_of_card() + 1))
+            else:
+                return list(range(36))
 
 class TestSingleGame(object):       
      

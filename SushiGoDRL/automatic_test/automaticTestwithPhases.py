@@ -22,18 +22,19 @@ from agents_sushi_go.card_lover_agent import PuddingHaterAgent
 from agents_sushi_go.card_lover_agent import ChopstickLoverAgent
 from agents_sushi_go.card_lover_agent import ChopstickHaterAgent
 from agents_sushi_go.card_lover_agent import ChopstickLoverAtFirstAgent
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase1
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase2
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase3
-# from agents_sushi_go.deep_q_learning_agent_v2 import DeepQLearningAgentPrueba3
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase3
+# from agents_sushi_go.q_learning_agent import QLearningAgentPhase1
+# from agents_sushi_go.q_learning_agent import QLearningAgentPhase2
+# from agents_sushi_go.q_learning_agent import QLearningAgentPhase3
+# # from agents_sushi_go.deep_q_learning_agent_v2 import DeepQLearningAgentPrueba3
+# from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
+# from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
+# from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase3
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DeepQLearningTorchAgentPhase1
 
-agent_to_test = RandomAgent()
+agent_to_test = DeepQLearningTorchAgentPhase1()
 
 agents = []
-agents.append(QLearningAgentPhase1())
+agents.append(RandomAgent())
 # agents.append(RandomAgent())
 # agents.append(RandomAgent())
 # agents.append(RandomAgent())
@@ -57,25 +58,27 @@ for i in range(0, games_number):
 
     print ("Loop " + str(i) + ":\n")
     
+    rival_new_legal_actions = list(range(9))
     second_card = None
     while not new_game.is_finished():
                 
         force_no_chopsticks_phase = not agent_to_test.trained_with_chopsticks_phase()
         legal_actions_player0 = new_game.get_legal_actions(force_no_chopsticks_phase)
-                
+        
+                        
         if not agent_to_test.trained_with_chopsticks_phase():
         
             if new_game.is_in_chopsticks_phase():
                 action = second_card
                
             else:
-                double_action = agent_to_test.choose_action(legal_actions_player0)
+                double_action = agent_to_test.choose_action(legal_actions_player0, rival_new_legal_actions)
         
                 cards = double_action.get_pair_of_cards()                
                 second_card = cards[1]
                 action = cards[0]
         else:
-            action = agent_to_test.choose_action(legal_actions_player0)
+            action = agent_to_test.choose_action(legal_actions_player0, rival_new_legal_actions)
         
         action_number = 8
         if action is not None:
@@ -90,6 +93,7 @@ for i in range(0, games_number):
         
         done = new_game.is_finished()
         new_legal_actions = new_game.get_legal_actions()
+        rival_new_legal_actions = new_game.get_rival_legal_actions()
         
         # agent_to_test.learn_from_previous_action(reward, done, new_legal_actions)
         
