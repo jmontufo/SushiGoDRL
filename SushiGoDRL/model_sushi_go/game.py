@@ -541,6 +541,7 @@ class SingleGame(Game):
                         rivals_actions.append(action.get_number())
                 else:
                     cards = action.get_pair_of_cards()
+                    rivals_actions.append(cards)
                 
                 self._Game__play_player_cards(player_number, cards)                   
                  
