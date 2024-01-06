@@ -7,6 +7,10 @@ import pickle
 
 from agent_builder.utils import *
 from agents_sushi_go.random_agent import RandomAgent
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DeepQLearningTorchAgentPhase1
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DoubleDeepQLearningTorchAgentPhase1
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DualingDeepQLearningTorchAgentPhase1
+from agents_sushi_go.deep_q_learning.maxmin_deep_q_learning_agent import MaxminDQLearningTorchAgentPhase1
 
 import torch
 import torch.nn as nn
@@ -103,7 +107,7 @@ class DQNetwork(torch.nn.Module):
         return net
        
     
-    def __get_Q(self, state):
+    def get_Q(self, state):
             
         if type(state) is tuple:
             state = np.array(state)
@@ -132,7 +136,7 @@ class DQNetwork(torch.nn.Module):
         return torch.gather(actions_values, 1, actions_pair)
     
     def get_next_action(self, state, legal_actions, rival_legal_actions):
-        q_values = self.__get_Q(state).detach()
+        q_values = self.get_Q(state).detach()
                 
         legal_actions_values = []
         
@@ -319,23 +323,30 @@ class MinimaxMultiDQL_Builder(object):
         
     def test_with_random_agent(self, current_batch):
         
+        agents_to_test = [
+            DeepQLearningTorchAgentPhase1(),
+            DoubleDeepQLearningTorchAgentPhase1(),
+            DualingDeepQLearningTorchAgentPhase1(),
+            MaxminDQLearningTorchAgentPhase1(),
+            ]
+        
         for player_num in range(2):
-            
-            agents = []
-            agents.append(RandomAgent())
-    
+                
             games_number = 1000
             victories_by_player = [0,0]
             points_by_player = [0,0]
-            
-            test_env = gym.make('sushi-go-v0', agents = agents,
-                                state_type = self.state_type,
-                                chopsticks_phase_mode = self.chopsticks_phase_mode, 
-                                reward_by_win = self.reward_by_win)
-            
-            distributions = self.state_type.get_expected_distribution()
-                    
+                                
             for i in range(0, games_number):
+                
+                agents = []
+                agents.append(agents_to_test[i % len(agents_to_test)])
+                
+                test_env = gym.make('sushi-go-v0', agents = agents,
+                                    state_type = self.state_type,
+                                    chopsticks_phase_mode = self.chopsticks_phase_mode, 
+                                    reward_by_win = self.reward_by_win)
+                
+                distributions = self.state_type.get_expected_distribution()
                 
                 state = test_env.reset()
                 rival_new_legal_actions = list(range(9))
@@ -580,8 +591,8 @@ class MinimaxMultiDQL_Builder(object):
                     actions_batch = np.array([each[1] for each in batch])
                     rewards_batch = np.array([each[2] for each in batch]) 
                     new_states_batch = np.array([each[3] for each in batch]).astype(float)
-                    new_actions_batch = np.array([each[4] for each in batch])
-                    rival_new_actions_batch = np.array([each[5] for each in batch])
+                    new_actions_batch = np.array([each[4] for each in batch], dtype=object)
+                    rival_new_actions_batch = np.array([each[5] for each in batch], dtype=object)
                     dones_batch = np.array([each[6] for each in batch])
                     
                     distributions = self.state_type.get_expected_distribution()

@@ -68,9 +68,9 @@ class Memory(object):
         
         return len(self.__buffer)
 
-class PGReinforceLearnedBaseline(torch.nn.Module):
+class PolicyNet(torch.nn.Module):
 
-    def __init__(self, learning_rate, state_lr, state_type, action_size):
+    def __init__(self, learning_rate, state_type, action_size):
         """
         Params
         ======
@@ -78,7 +78,7 @@ class PGReinforceLearnedBaseline(torch.nn.Module):
         n_outputs: mida de l'espai d'accions
         actions: array d'accions possibles
         """
-        super(PGReinforceLearnedBaseline, self).__init__()
+        super(PolicyNet, self).__init__()
         
         self.input_shape = state_type.get_number_of_observations()
         self.n_outputs = action_size
@@ -86,29 +86,16 @@ class PGReinforceLearnedBaseline(torch.nn.Module):
         self.learning_rate = learning_rate
         
         self.red_lineal = nn.Sequential(
-            torch.nn.Linear(self.input_shape, 256, bias=True), 
-            # torch.nn.Tanh(), 
-            # torch.nn.Linear(64, 64, bias=True),
+            torch.nn.Linear(self.input_shape, 256), 
             torch.nn.Tanh(), 
-            torch.nn.Linear(256, self.n_outputs, bias=True),
+            # torch.nn.Linear(64, 64, bias=True),
+            # torch.nn.ReLU(), 
+            torch.nn.Linear(256, self.n_outputs),
             torch.nn.Softmax(dim=-1))
 
         self.optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         self.losses = []
-        self.state_losses = []
-        
-        self.state_lr = state_lr
-        
-        self.red_state_value = nn.Sequential(
-            torch.nn.Linear(self.input_shape, 256),
-            # torch.nn.ReLU(),
-            # torch.nn.Linear(256, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, 1))
-        
-        self.optimizer_state_value = torch.optim.Adam(self.parameters(), lr=state_lr)
-        # print(self.red_lineal)
-
+    
     def get_action_prob(self, state):
         if type(state) is tuple:
             state = np.array(state)
@@ -168,18 +155,7 @@ class PGReinforceLearnedBaseline(torch.nn.Module):
         
         return action
 
-    def get_state_value(self, state):
-            
-    #         print("get_action_value")
-    #         print("\tstate")
-    #         print(state)
-        if type(state) is tuple:
-            state = np.array(state)
-        state_t = torch.FloatTensor(state)
-            
-    #         print("\tresult")
-    #         print(self.red_critic(state_t))
-        return self.red_state_value(state_t)
+   
     
     def update(self, states_batch, actions_batch, rewards_batch, advantage_batch, has_decided_batch):
         # print("update")
@@ -214,20 +190,6 @@ class PGReinforceLearnedBaseline(torch.nn.Module):
     
         self.losses.append(loss.detach().numpy())
         
-        self.update_state_value(states_batch, rewards_batch)
-     
-    def update_state_value(self, states_batch, rewards_batch):
-        # print("update")
-        # print(rewards_batch)
-        state_t = torch.FloatTensor(states_batch)
-        reward_t = torch.FloatTensor(rewards_batch)
-        loss = self.calculate_loss_state_value(state_t, reward_t) 
-        self.optimizer_state_value.zero_grad() 
-        loss.backward() 
-        self.optimizer_state_value.step()
-         
-        
-        self.state_losses.append(loss.detach().numpy())
               
     def calculate_loss(self, state_t, action_t, reward_t):
         
@@ -259,6 +221,67 @@ class PGReinforceLearnedBaseline(torch.nn.Module):
         return loss 
     
     
+    def load(self, filename):
+        
+       return
+        
+                
+    def save(self, filename):
+        
+       return
+    
+    
+class LearnedStateNet(torch.nn.Module):
+
+    def __init__(self, state_lr, state_type):
+        """
+        Params
+        ======
+        n_inputs: mida de l'espai d'estats
+        n_outputs: mida de l'espai d'accions
+        actions: array d'accions possibles
+        """
+        super(LearnedStateNet, self).__init__()
+        
+        self.input_shape = state_type.get_number_of_observations()
+                    
+        self.state_losses = []
+        
+        self.state_lr = state_lr
+        
+        self.red_state_value = nn.Sequential(
+            torch.nn.Linear(self.input_shape, 256),
+            torch.nn.ReLU(),
+            torch.nn.Linear(256, 1))
+        
+        self.optimizer_state_value = torch.optim.Adam(self.parameters(), lr=state_lr)
+
+    def get_state_value(self, state):
+            
+    #         print("get_action_value")
+    #         print("\tstate")
+    #         print(state)
+        if type(state) is tuple:
+            state = np.array(state)
+        state_t = torch.FloatTensor(state)
+            
+    #         print("\tresult")
+    #         print(self.red_critic(state_t))
+        return self.red_state_value(state_t)
+    
+    def update(self, states_batch, rewards_batch):
+        # print("update")
+        # print(rewards_batch)
+        state_t = torch.FloatTensor(states_batch)
+        reward_t = torch.FloatTensor(rewards_batch)
+        loss = self.calculate_loss_state_value(state_t, reward_t) 
+        self.optimizer_state_value.zero_grad() 
+        loss.backward() 
+        self.optimizer_state_value.step()
+         
+        
+        self.state_losses.append(loss.detach().numpy())
+    
     def calculate_loss_state_value(self, state_t, reward_t):
         
         # print("state_t")
@@ -283,11 +306,13 @@ class PGReinforceLearnedBaseline(torch.nn.Module):
     def save(self, filename):
         
        return
-    
+       
+        
 class PGRLB_Builder(object):
 
     def __init__(self, num_players, versus_agents, state_type, total_episodes, 
-                 learning_rate, discount, reference = "", previous_nn_filename = None):             
+                 learning_rate, discount, reference = "", 
+                 previous_nn_filename = None, reward_by_win = 0):             
                     
         self.total_episodes = total_episodes
         
@@ -298,6 +323,7 @@ class PGRLB_Builder(object):
         self.versus_agents = versus_agents
         self.agents = [] 
         self.discount = discount
+        self.reward_by_win = reward_by_win 
             
         self.memory = Memory(0, 4096)
         
@@ -307,18 +333,20 @@ class PGRLB_Builder(object):
         chopsticks_phase_mode = state_type.trained_with_chopsticks_phase()
         
         self.env = gym.make('sushi-go-v0', agents = self.agents, state_type = state_type,
-        chopsticks_phase_mode = chopsticks_phase_mode)
+        chopsticks_phase_mode = chopsticks_phase_mode, reward_by_win = self.reward_by_win)
         
         action_size = self.env.action_space.n
                 
-        self.pg_network = PGReinforceLearnedBaseline(learning_rate, 0.001, state_type, action_size)
+        self.policy_network = PolicyNet(learning_rate, state_type, action_size)
+        self.state_network = LearnedStateNet(0.001, state_type)
         
         if previous_nn_filename is not None:
             
             previous_episodes = previous_nn_filename.split("_")[-2]
             previous_episodes = int(previous_episodes)
             
-            self.pg_network.load(previous_nn_filename)
+            self.policy_network = torch.load(previous_nn_filename + "_p.pt")
+            self.state_network = torch.load(previous_nn_filename + "_s.pt")
             
             Q_input = open(previous_nn_filename + ".pkl", 'rb')
             self.state_transf_data = pickle.load(Q_input)
@@ -335,6 +363,7 @@ class PGRLB_Builder(object):
         self.filename += state_type.__name__ + "_"
         self.filename += "lr" + str(learning_rate) + "_"
         self.filename += "d" + str(discount) + "_"
+        self.filename += "wr" + str(reward_by_win) + "_"
         self.filename += str(previous_episodes + total_episodes) + "_"
         self.filename += reference
         
@@ -366,14 +395,18 @@ class PGRLB_Builder(object):
             episode_rewards = 0
             
             if episode > 0 and episode % 1000 == 0:
-                                                
+                                                                
                 print(str(episode) + " episodes.")
                 print("Reward: " + str(current_batch.total_reward))
-                
+                print("Score: " + str(current_batch.points))
+                print("Wins: " + str(current_batch.points_by_victory))
+                                
                 episodes_batch_id = int(episode / 1000)
                 batch_filename = self.filename + "-" + str(episodes_batch_id)
                 
-                self.pg_network.save(batch_filename)  
+                torch.save(self.policy_network, batch_filename + "_p.pt")
+                torch.save(self.state_network, batch_filename + "_s.pt")
+                                
                 if self.state_transf_data is not None:
                     self.state_transf_data.save(batch_filename)
                                 
@@ -418,7 +451,7 @@ class PGRLB_Builder(object):
                     # print("aaaaa\n" + str(np.array(transformed_state)) )
                     # print("transformed_state")                            
                     # print(transformed_state)      
-                    action = self.pg_network.get_next_action(np.array(transformed_state), legal_actions)
+                    action = self.policy_network.get_next_action(np.array(transformed_state), legal_actions)
                 else:
                     action = random.choice(legal_actions)
         
@@ -451,7 +484,7 @@ class PGRLB_Builder(object):
                  
                 # print("rewards_batch")
                 # print(rewards_batch)
-                state_pred = (self.pg_network.get_state_value(states_batch).detach().numpy())
+                state_pred = (self.state_network.get_state_value(states_batch).detach().numpy())
                 # print("state_pred")
                 # print(state_pred)
                 advantage_batch = rewards_batch.reshape(-1,1) - state_pred
@@ -480,10 +513,15 @@ class PGRLB_Builder(object):
                                     
                     states_batch[:,i] = state_attribute                
                 # print("aqui\n\n")
-                self.pg_network.update(states_batch, actions_batch, rewards_batch, advantage_batch, has_decided_batch)  
+                
+        
+                self.policy_network.update(states_batch, actions_batch, rewards_batch, advantage_batch, has_decided_batch)              
+                self.state_network.update(states_batch, rewards_batch)  
             
                 rewards.append(episode_rewards)
                 current_batch.total_reward += episode_rewards
+                current_batch.points += info['score']                      
+                current_batch.points_by_victory += info['points_by_victory']
 
                 # print("episode_rewards" + str(episode_rewards))                
             elif self.memory.is_full():            
@@ -514,20 +552,21 @@ class PGRLB_Builder(object):
                         self.state_transf_data.stDevs.append(np.std(state_attribute,0))
                         
             trajectory = []
-        
-        self.pg_network.save(self.filename) 
+                
+        torch.save(self.policy_network, self.filename + "_p.pt")
+        torch.save(self.state_network, self.filename + "_s.pt")
         self.state_transf_data.save(self.filename)
         
         batches.append(current_batch)                
         plt.figure(figsize=(36, 48))
         
         plt.subplot(2, 1, 1)
-        plt.plot(self.pg_network.losses, label='loss')
+        plt.plot(self.policy_network.losses, label='loss')
         plt.title('Gradient Loss Function Evolution')
         plt.legend()
         
         plt.subplot(2, 1, 2)
-        plt.plot(self.pg_network.state_losses, label='loss')
+        plt.plot(self.state_network.state_losses, label='loss')
         plt.title('State Loss Function Evolution')
         plt.legend()
         

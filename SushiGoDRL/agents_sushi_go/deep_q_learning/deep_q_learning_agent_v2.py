@@ -17,6 +17,8 @@ class DeepQLearningAgent(Agent):
     
     def __init__(self, player, filename, state_type, learning_rate):
         
+        # filename = "/kaggle/input/sushigodrl/" + filename    
+        
         super(DeepQLearningAgent, self).__init__(player, filename)
         
         json_file = open(filename + '.json', 'r')
@@ -40,10 +42,10 @@ class DeepQLearningAgent(Agent):
         
     def begin_training(self):
         
-        self.q_network.compile(loss='mse', optimizer='adam')
+        # self.q_network.compile(loss='mse', optimizer='adam')
+        return
 
-
-    def choose_action(self, legal_actions):
+    def choose_action(self, legal_actions, rival_legal_actions = None):
              
         state = self.state_type.build_by_player(self.get_player())
         observation = state.get_as_observation().astype(float)                
@@ -70,30 +72,30 @@ class DeepQLearningAgent(Agent):
        
     def learn_from_previous_action(self, reward, done, new_legal_actions):
         
-        new_state = self.state_type.build_by_player(self.get_player())
-        new_observation = new_state.get_as_observation()
-        adapted_new_state = new_observation.reshape(-1, len(new_observation)).astype(float)
+        # new_state = self.state_type.build_by_player(self.get_player())
+        # new_observation = new_state.get_as_observation()
+        # adapted_new_state = new_observation.reshape(-1, len(new_observation)).astype(float)
                 
-        new_state = self.standardize_state(adapted_new_state)
+        # new_state = self.standardize_state(adapted_new_state)
         
-        target = self.q_network.predict(self.last_state)[0]     
-        new_states_values = self.q_network.predict(new_state)[0]     
+        # target = self.q_network.predict(self.last_state)[0]     
+        # new_states_values = self.q_network.predict(new_state)[0]     
                                       
-        new_value = reward
+        # new_value = reward
         
-        if not done:
+        # if not done:
                                         
-            new_legal_actions_values = []
+        #     new_legal_actions_values = []
             
-            for new_legal_action in new_legal_actions:
-                new_legal_actions_values.append(new_states_values[new_legal_action.get_action_number()])            
+        #     for new_legal_action in new_legal_actions:
+        #         new_legal_actions_values.append(new_states_values[new_legal_action.get_action_number()])            
             
-            new_value += self.learning_rate * np.amax(new_legal_actions_values)
+        #     new_value += self.learning_rate * np.amax(new_legal_actions_values)
                         
-        target[self.last_action_taken.get_action_number()] = new_value
+        # target[self.last_action_taken.get_action_number()] = new_value
             
-        self.q_network.fit(self.last_state, target.reshape(-1, len(target)), epochs=1) 
-    
+        # self.q_network.fit(self.last_state, target.reshape(-1, len(target)), epochs=1) 
+        return 
     def save_training(self):
         
         model_json = self.q_network.to_json()
@@ -135,46 +137,63 @@ class DeepQLearningAgentPhase1(DeepQLearningAgent):
     def __init__(self, player = None):
         
         super(DeepQLearningAgentPhase1, self).__init__(player, "Deep_Q_Learning_2p_TwoPlayersCompleteState_lr1_26000_Phase1", TwoPlayersCompleteState, 1)
-
+      
+    def trained_with_chopsticks_phase(self):
+        return False 
+    
 class DeepQLearningAgentPhase2(DeepQLearningAgent):
     
     def __init__(self, player = None):
         
         super(DeepQLearningAgentPhase2, self).__init__(player, "Deep_Q_Learning_2p_TwoPlayersCompleteState_lr1_20000_Phase2", TwoPlayersCompleteState, 1)
-    
+          
+    def trained_with_chopsticks_phase(self):
+        return False 
 class DeepQLearningAgentPhase3(DeepQLearningAgent):
     
     def __init__(self, player = None):
         
         super(DeepQLearningAgentPhase3, self).__init__(player, "Deep_Q_Learning_2p_TwoPlayersCompleteState_lr1_25000_Phase3", TwoPlayersCompleteState, 1)
-        
+              
+    def trained_with_chopsticks_phase(self):
+        return False 
 class DeepQLearningAgentPhase4(DeepQLearningAgent):
     
     def __init__(self, player = None):
         
         super(DeepQLearningAgentPhase4, self).__init__(player, "Deep_Q_Learning_2p_TwoPlayersCompleteState_lr1_25000_Phase4", TwoPlayersCompleteState, 1)
-    
+          
+    def trained_with_chopsticks_phase(self):
+        return False 
 class DoubleDeepQLearningAgentPhase1(DeepQLearningAgent):
     
     def __init__(self, player = None):
         
         super(DoubleDeepQLearningAgentPhase1, self).__init__(player, "Double_Deep_Q_Learning_2p_TwoPlayersCompleteState_lr1_23000_Phase1", TwoPlayersCompleteState, 1)
-
+      
+    def trained_with_chopsticks_phase(self):
+        return False 
 class DoubleDeepQLearningAgentPhase2(DeepQLearningAgent):
     
     def __init__(self, player = None):
         
         super(DoubleDeepQLearningAgentPhase2, self).__init__(player, "Double_Deep_Q_Learning_2p_TwoPlayersCompleteState_lr1_20000_Phase2", TwoPlayersCompleteState, 1)
-
+      
+    def trained_with_chopsticks_phase(self):
+        return False 
 class DoubleDeepQLearningAgentPhase3(DeepQLearningAgent):
     
     def __init__(self, player = None):
         
         super(DoubleDeepQLearningAgentPhase3, self).__init__(player, "Double_Deep_Q_Learning_2p_TwoPlayersCompleteState_lr1_20000_Phase3", TwoPlayersCompleteState, 1)
-
+      
+    def trained_with_chopsticks_phase(self):
+        return False 
 class DoubleDeepQLearningAgentPhase4(DeepQLearningAgent):
     
     def __init__(self, player = None):
         
         super(DoubleDeepQLearningAgentPhase4, self).__init__(player, "Double_Deep_Q_Learning_2p_TwoPlayersCompleteState_lr1_20000_Phase4", TwoPlayersCompleteState, 1)
-
+      
+    def trained_with_chopsticks_phase(self):
+        return False 

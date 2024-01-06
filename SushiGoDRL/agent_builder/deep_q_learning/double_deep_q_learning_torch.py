@@ -102,7 +102,7 @@ class DDQNetwork(torch.nn.Module):
         return net
        
     
-    def __get_Q(self, state):
+    def get_Q(self, state):
             
         if type(state) is tuple:
             state = np.array(state)
@@ -131,8 +131,9 @@ class DDQNetwork(torch.nn.Module):
         return torch.gather(actions_values, 1, action)
     
     def get_next_action(self, state, legal_actions):
-        q_values = self.__get_Q(state).detach()
-                
+        q_values = self.get_Q(state).detach()
+        # print("q_values")
+        # print(q_values)
         legal_actions_values = []
         
         for action in legal_actions:
@@ -165,7 +166,7 @@ class DDQNetwork(torch.nn.Module):
         
         qvals = self.get_action_state_value(state_t, action_t)
                 
-        qvals_next_in_main = self.__get_Q(new_states_t)
+        qvals_next_in_main = self.get_Q(new_states_t)
         qvals_next_in_target = self.__get_target_Q(new_states_t)
         
        

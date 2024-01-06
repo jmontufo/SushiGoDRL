@@ -23,25 +23,35 @@ from agents_sushi_go.card_lover_agent import PuddingHaterAgent
 from agents_sushi_go.card_lover_agent import ChopstickLoverAgent
 from agents_sushi_go.card_lover_agent import ChopstickHaterAgent
 from agents_sushi_go.card_lover_agent import ChopstickLoverAtFirstAgent
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase1
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase2
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase3
-from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase1
-from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase2
-from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase3
-from agents_sushi_go.deep_q_learning_agent import DoubleDeepQLearningAgentPhase1
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase3
-from agents_sushi_go.deep_q_learning_torch_agent import  DeepQLearningTorchAgentPhase1
+# from agents_sushi_go.q_learning_agent import QLearningAgentPhase1
+# from agents_sushi_go.q_learning_agent import QLearningAgentPhase2
+# from agents_sushi_go.q_learning_agent import QLearningAgentPhase3
+# from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase1
+# from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase2
+# from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase3
+# from agents_sushi_go.deep_q_learning_agent import DoubleDeepQLearningAgentPhase1
+# from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
+# from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
+# from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase3
+from agents_sushi_go.deep_q_learning.deep_q_learning_agent_v2 import DeepQLearningAgentPhase1
+from agents_sushi_go.deep_q_learning.deep_q_learning_agent_v2 import DeepQLearningAgentPhase4
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DeepQLearningTorchAgentPhase1
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DeepQLearningTorchAgentPhase2
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DoubleDeepQLearningTorchAgentPhase1
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DoubleDeepQLearningTorchAgentPhase2
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DualingDeepQLearningTorchAgentPhase1
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DualingDeepQLearningTorchAgentPhase2
+from agents_sushi_go.deep_q_learning.maxmin_deep_q_learning_agent import MaxminDQLearningTorchAgentPhase1
+from agents_sushi_go.deep_q_learning.maxmin_deep_q_learning_agent import MaxminDQLearningTorchAgentPhase2
+from agents_sushi_go.multiagent_learning.minimax_multi_deep_q_learning_agent import MinimaxQAgent
 
-num_players = 2
+num_players = 5
 
-games_number = 300
+games_number = 1000
 victories_by_player = [0] * num_players
 points_by_player = [0] * num_players
 
-agents = [DeepQLearningTorchAgentPhase1(), QLearningAgentPhase3()]
+agents = [DeepQLearningTorchAgentPhase1(), DeepQLearningTorchAgentPhase1(), DeepQLearningTorchAgentPhase1(), DeepQLearningTorchAgentPhase1(), DeepQLearningTorchAgentPhase1()]
     
 for i in range(0,games_number):
     

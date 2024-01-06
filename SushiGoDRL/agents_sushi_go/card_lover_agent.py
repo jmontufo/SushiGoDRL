@@ -148,7 +148,7 @@ class DumplingLoverAgent(LoverAgent):
         
         super(DumplingLoverAgent, self).__init__(player)
 
-    def choose_action(self, legal_actions):
+    def choose_action(self, legal_actions, rival_legal_actions=None):
                     
         return self.find_action(legal_actions, DumplingCard)
         
@@ -248,7 +248,7 @@ class ChopstickLoverAgent(LoverAgent):
         
         super(ChopstickLoverAgent, self).__init__(player)
          
-    def choose_action(self, legal_actions):
+    def choose_action(self, legal_actions, rival_legal_actions = None):
                     
         return self.find_action(legal_actions, ChopsticksCard)
         
@@ -258,7 +258,7 @@ class ChopstickHaterAgent(HaterAgent):
         
         super(ChopstickHaterAgent, self).__init__(player)
     
-    def choose_action(self, legal_actions):
+    def choose_action(self, legal_actions, rival_legal_actions = None):
                     
         return self.find_action(legal_actions, ChopsticksCard) 
     

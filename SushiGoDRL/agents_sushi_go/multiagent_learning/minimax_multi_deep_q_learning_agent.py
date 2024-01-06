@@ -20,9 +20,12 @@ class MinimaxMultiDQLearningAgent(Agent):
     def __init__(self, player, filename, state_type, learning_rate, winner_num):
         
         super(MinimaxMultiDQLearningAgent, self).__init__(player, filename)
+        
+        
+        # filename = "/kaggle/input/sushigodrl/" + filename     
                 
         self.dq_network = torch.load(filename + ".pt")
-        self.winner_num = winner_num
+        self.winner_num = winner_num - 1
         
         self.state_type = state_type
         self.learning_rate = learning_rate
@@ -50,13 +53,38 @@ class MinimaxMultiDQLearningAgent(Agent):
         
         adapted_state = observation.reshape(-1, len(observation))
         
-        # print("adapted_state")
-        # print(adapted_state)
-        action = self.dq_network[self.winner_num].get_next_action(np.array(adapted_state), 
-                                                   legal_actions, 
-                                                   rival_legal_actions)
+        q_values = self.dq_network[self.winner_num].get_Q(adapted_state).detach()
+                
+        legal_actions_values = []
+        
+        # print("legal_actions")
+        # print(legal_actions)
+        # print("rival_legal_actions")
+        # print(rival_legal_actions)
+        # print("q_values")
+        # print(q_values)
+        for action in legal_actions:
+            action_number = 8
+            if action is not None:
+                action_number = action.get_number()
+                
+            # print("action_number")
+            # print(action_number)
+            action_values = []
+            
+            for rival_action in rival_legal_actions:
+                    
+                # print("action_number")
+                # print(action_number)
+                actions_pair = action_number + rival_action * 9
+                action_values.append(q_values[0][actions_pair])
+            
+            legal_actions_values.append(np.amin(action_values))
+            
+        max_value = np.amax(legal_actions_values)           
+        best_actions = np.argwhere(legal_actions_values == max_value).flatten().tolist()        
+        action = legal_actions[random.choice(best_actions)]
     
-                                       
         self.last_action_taken = action
         self.last_state = state
         
@@ -128,14 +156,23 @@ class MinimaxMultiDQLearningAgent(Agent):
         return
         
     
-class DeepQLearningTorchAgentPhase1(DeepQLearningTorchAgent):
+class MinimaxQAgent(MinimaxMultiDQLearningAgent):
     
     def __init__(self, player = None):
         
-        super(DeepQLearningTorchAgentPhase1, self).__init__(player, "DQLt_2p_CompleteMemoryState_lr0.001_d0.95_wr-1_20000_Phase1-18", CompleteMemoryState, 0.0005)
+        super(MinimaxQAgent, self).__init__(player, "MinimaxMultiDQL_CompleteMemoryState_lr0.0005_d0.99_40000_PhaseX-38", CompleteMemoryState, 0.0005, 1)
       
     def trained_with_chopsticks_phase(self):
         return True  
+    
+class MinimaxQAgentSashimiPlus(MinimaxMultiDQLearningAgent):
+    
+    def __init__(self, player = None):
+        
+        super(MinimaxQAgentSashimiPlus, self).__init__(player, "MinimaxMultiDQL_CompleteMemoryState_lr0.0005_d0.99_40000_SashimiPlus-39", CompleteMemoryState, 0.0005, 1)
+      
+    def trained_with_chopsticks_phase(self):
+        return True 
 # class DeepQLearningAgentPhase2(DeepQLearningAgent):
     
 #     def __init__(self, player = None):

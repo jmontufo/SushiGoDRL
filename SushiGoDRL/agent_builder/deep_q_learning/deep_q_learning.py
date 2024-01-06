@@ -39,13 +39,13 @@ from agents_sushi_go.card_lover_agent import PuddingHaterAgent
 from agents_sushi_go.card_lover_agent import ChopstickLoverAgent
 from agents_sushi_go.card_lover_agent import ChopstickHaterAgent
 from agents_sushi_go.card_lover_agent import ChopstickLoverAtFirstAgent
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase1
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase2
-from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase1
-from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase2
-from agents_sushi_go.deep_q_learning_agent import DoubleDeepQLearningAgentPhase1
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
+# from agents_sushi_go.q_learning_agent import QLearningAgentPhase1
+# from agents_sushi_go.q_learning_agent import QLearningAgentPhase2
+# from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase1
+# from agents_sushi_go.deep_q_learning_agent import DeepQLearningAgentPhase2
+# from agents_sushi_go.deep_q_learning_agent import DoubleDeepQLearningAgentPhase1
+# from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
+# from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
 
 class StateTransformationData(object):
     

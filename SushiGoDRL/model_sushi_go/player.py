@@ -102,7 +102,7 @@ class Player(object):
         table = self.get_table()
         hand = self.get_hand()
         
-        return table.get_chopsticks() > 0 and hand.get_num_of_cards() > 1    
+        return table.get_chopsticks() > 0 and hand.get_num_of_cards() >= 1    
     
     def get_hand_cards(self):
         

@@ -184,7 +184,7 @@ class MaxminDQNetwork(object):
             self.__q_network.append(QNetwork(learning_rate, state_type, action_size, discount))
 
     
-    def __get_Q(self, state, i):        
+    def get_Q(self, state, i):        
         return self.__q_network[i].get_Q(state)    
     
     def __get_target_Q(self, state, i):                    
@@ -197,10 +197,8 @@ class MaxminDQNetwork(object):
         q_values = []
         
         for j in range(self.__N):
-            q_values.append(self.__get_Q(state, j).detach())
-            
-
-            
+            q_values.append(self.get_Q(state, j).detach())
+                      
         q_values = torch.min(torch.stack(q_values),
                                dim=-2)[0]
 

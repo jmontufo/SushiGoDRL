@@ -20,7 +20,9 @@ class DeepQLearningTorchAgent(Agent):
     def __init__(self, player, filename, state_type, learning_rate):
         
         super(DeepQLearningTorchAgent, self).__init__(player, filename)
-                
+        
+        # filename = "/kaggle/input/sushigodrl/" + filename        
+        
         self.dq_network = torch.load(filename + ".pt")
         
         self.state_type = state_type
@@ -140,10 +142,83 @@ class DeepQLearningTorchAgentPhase1(DeepQLearningTorchAgent):
     
     def __init__(self, player = None):
         
-        super(DeepQLearningTorchAgentPhase1, self).__init__(player, "DQLt_2p_CompleteMemoryState_lr0.001_d0.95_wr-1_20000_Phase1-18", CompleteMemoryState, 0.0005)
+        super(DeepQLearningTorchAgentPhase1, self).__init__(player, "DQLt_2p_CompleteMemoryState_lr0.00075_d0.995_wr-1_40000_Phase1-34", CompleteMemoryState, 0.00075)
+      
+    def trained_with_chopsticks_phase(self):
+        return True      
+  
+class DeepQLearningTorchAgentPhase2(DeepQLearningTorchAgent):
+    
+    def __init__(self, player = None):
+        
+        super(DeepQLearningTorchAgentPhase2, self).__init__(player, "DQLt_2p_CompleteMemoryState_lr0.001_d1_wr-1_40000_Phase2-39", CompleteMemoryState, 0.001)
+      
+    def trained_with_chopsticks_phase(self):
+        return True      
+          
+class DeepQLearningTorchAgentPhase3(DeepQLearningTorchAgent):
+    
+    def __init__(self, player = None):
+        
+        super(DeepQLearningTorchAgentPhase3, self).__init__(player, "DQLt_2p_CompleteMemoryState_lr0.00075_d1_wr-1_40000_Phase3-38", CompleteMemoryState, 0.00075)
+      
+    def trained_with_chopsticks_phase(self):
+        return True   
+    
+class DoubleDeepQLearningTorchAgentPhase1(DeepQLearningTorchAgent):
+    
+    def __init__(self, player = None):
+        
+        super(DoubleDeepQLearningTorchAgentPhase1, self).__init__(player, "DDQLt_2p_CompleteMemoryState_lr0.0005_d0.99_wr-1_40000_Phase1-31", CompleteMemoryState, 0.0005)
       
     def trained_with_chopsticks_phase(self):
         return True  
+    
+class DoubleDeepQLearningTorchAgentPhase2(DeepQLearningTorchAgent):
+    
+    def __init__(self, player = None):
+        
+        super(DoubleDeepQLearningTorchAgentPhase2, self).__init__(player, "DDQLt_2p_CompleteMemoryState_lr0.00025_d0.995_wr-1_40000_Phase2-39", CompleteMemoryState, 0.00025)
+      
+    def trained_with_chopsticks_phase(self):
+        return True 
+     
+class DoubleDeepQLearningTorchAgentPhase3(DeepQLearningTorchAgent):
+    
+    def __init__(self, player = None):
+        
+        super(DoubleDeepQLearningTorchAgentPhase3, self).__init__(player, "DDQLt_2p_CompleteMemoryState_lr0.0001_d0.995_wr-1_40000_Phase3-27", CompleteMemoryState, 0.0001)
+      
+    def trained_with_chopsticks_phase(self):
+        return True  
+    
+class DualingDeepQLearningTorchAgentPhase1(DeepQLearningTorchAgent):
+    
+    def __init__(self, player = None):
+        
+        super(DualingDeepQLearningTorchAgentPhase1, self).__init__(player, "DualingDQLt_2p_CompleteMemoryState_lr0.0005_d0.99_wr-1_40000_Phase1-24", CompleteMemoryState, 0.0005)
+      
+    def trained_with_chopsticks_phase(self):
+        return True  
+    
+class DualingDeepQLearningTorchAgentPhase2(DeepQLearningTorchAgent):
+    
+    def __init__(self, player = None):
+        
+        super(DualingDeepQLearningTorchAgentPhase2, self).__init__(player, "DualingDQLt_2p_CompleteMemoryState_lr0.0005_d1_wr-1_40000_Phase2", CompleteMemoryState, 0.0005)
+      
+    def trained_with_chopsticks_phase(self):
+        return True  
+    
+class DualingDeepQLearningTorchAgentPhase3(DeepQLearningTorchAgent):
+    
+    def __init__(self, player = None):
+        
+        super(DualingDeepQLearningTorchAgentPhase3, self).__init__(player, "DualingDQLt_2p_CompleteMemoryState_lr0.00075_d1_wr-1_40000_Phase3-39", CompleteMemoryState, 0.00075)
+      
+    def trained_with_chopsticks_phase(self):
+        return True  
+        
 # class DeepQLearningAgentPhase2(DeepQLearningAgent):
     
 #     def __init__(self, player = None):

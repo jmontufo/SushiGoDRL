@@ -69,6 +69,7 @@ class Memory(object):
         return len(self.__buffer)
     
 class QNetwork(nn.Module):
+    
     def __init__(self, state_type, action_size):
         super(QNetwork, self).__init__()
                 
@@ -89,15 +90,11 @@ class QNetwork(nn.Module):
 
         value = self.value(value)
         adv = self.adv(adv)
-    
-        
+            
         advAverage = torch.mean(adv, dim=1, keepdim=True)
 
-
         Q = value + adv - advAverage
-
-
-
+        
         return Q
 
 class DualingDQNetwork(object):
@@ -120,7 +117,7 @@ class DualingDQNetwork(object):
         self.__optimizer = torch.optim.Adam(self.__q_network.parameters(), lr=learning_rate)
               
     
-    def __get_Q(self, state):
+    def get_Q(self, state):
             
         if type(state) is tuple:
             state = np.array(state)
@@ -150,7 +147,7 @@ class DualingDQNetwork(object):
     
     def get_next_action(self, state, legal_actions):
         with torch.no_grad():
-            q_values = self.__get_Q(state).detach()[0]
+            q_values = self.get_Q(state).detach()[0]
           
                     
             legal_actions_values = []

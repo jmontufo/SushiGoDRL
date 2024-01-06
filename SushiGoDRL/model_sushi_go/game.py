@@ -496,11 +496,26 @@ class SingleGame(Game):
                 return list(range(CARD_TYPES.get_num_types_of_card() + 1))
             else:
                 return list(range(36))
+            
+    def get_player_legal_actions_numbers_for_rival(self, force_no_chopsticks_phase = False):
+        
+        if self.get_turn() > 1:
+            rival_legal_actions = self.get_legal_actions(force_no_chopsticks_phase)
+            # print ("rival_legal_actions")
+            # print (rival_legal_actions)
+            return self._Game__get_legal_actions_numbers(rival_legal_actions)
+        else:
+            if self.is_chopsticks_phase_mode():
+                return list(range(CARD_TYPES.get_num_types_of_card() + 1))
+            else:
+                return list(range(36))
     
     def play_cards(self, cards):
        
-        try:
+        try:            
             
+            rival_legal_actions = self.get_player_legal_actions_numbers_for_rival()
+                
             self._Game__play_player_cards(0, cards)    
 
             rivals_actions = []                 
@@ -515,21 +530,22 @@ class SingleGame(Game):
                 
                 force_no_chopsticks_phase = not agent.trained_with_chopsticks_phase()
                 legal_actions = self._Game__get_legal_actions_of_player(player_number, force_no_chopsticks_phase)
-                         
-
+                  
+                # print("rival legal actions")
+                # print(rival_legal_actions)
                 if not agent.trained_with_chopsticks_phase():
                 
                     if self.is_in_chopsticks_phase():
                         action = self.__second_cards[agent_index]
                        
                     else:
-                        double_action = agent.choose_action(legal_actions)
+                        double_action = agent.choose_action(legal_actions, rival_legal_actions)
                 
                         cards = double_action.get_pair_of_cards()                
                         self.__second_cards[agent_index] = cards[1]
                         action = cards[0]
                 else:
-                    action = agent.choose_action(legal_actions)
+                    action = agent.choose_action(legal_actions, rival_legal_actions)
                              
                 self.get_log().append("Action chosen:")            
                 self.get_log().append(str(action))
@@ -558,8 +574,8 @@ class SingleGame(Game):
         
         except Exception as inst:
             
-            for line in self.get_log():
-                print(line)
+            # for line in self.get_log():
+            #     print(line)
             
             raise inst
     

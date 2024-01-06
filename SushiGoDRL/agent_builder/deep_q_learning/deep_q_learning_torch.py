@@ -232,6 +232,7 @@ class DQLT_Builder(object):
         chopsticks_phase_mode = state_type.trained_with_chopsticks_phase()
        
         self.memory = Memory(batch_size, memory_size)
+        # print(self.agents)
         self.env = gym.make('sushi-go-v0', agents = self.agents, state_type = state_type,
         chopsticks_phase_mode = chopsticks_phase_mode, reward_by_win = self.reward_by_win)
         

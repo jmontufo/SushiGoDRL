@@ -22,16 +22,17 @@ from agents_sushi_go.card_lover_agent import PuddingHaterAgent
 from agents_sushi_go.card_lover_agent import ChopstickLoverAgent
 from agents_sushi_go.card_lover_agent import ChopstickHaterAgent
 from agents_sushi_go.card_lover_agent import ChopstickLoverAtFirstAgent
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase1
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase2
-from agents_sushi_go.q_learning_agent import QLearningAgentPhase3
+# from agents_sushi_go.q_learning_agent import QLearningAgentPhase1
+# from agents_sushi_go.q_learning_agent import QLearningAgentPhase2
+# from agents_sushi_go.q_learning_agent import QLearningAgentPhase3
 # from agents_sushi_go.deep_q_learning_agent_v2 import DeepQLearningAgentPrueba3
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
-from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase3
-from agents_sushi_go.deep_q_learning_torch_agent import  DeepQLearningTorchAgentPhase1
+# from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
+# from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
+# from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase3
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DeepQLearningTorchAgentPhase1
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DoubleDeepQLearningTorchAgentPhase1
 
-agent_to_test = DeepQLearningTorchAgentPhase1()
+agent_to_test = DoubleDeepQLearningTorchAgentPhase1()
 
 agents = []
 agents.append(RandomAgent())
@@ -39,7 +40,7 @@ agents.append(RandomAgent())
 # agents.append(RandomAgent())
 # agents.append(RandomAgent())
 
-games_number = 100
+games_number = 1000
 victories_by_player = [0,0,0,0,0]
 points_by_player = [0,0,0,0,0]
 

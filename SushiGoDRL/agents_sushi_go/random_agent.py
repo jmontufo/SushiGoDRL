@@ -8,7 +8,7 @@ class RandomAgent(Agent):
         
         super(RandomAgent, self).__init__(player)
          
-    def choose_action(self, legalActions):
+    def choose_action(self, legalActions, rival_legal_actions = None):
                 
         return random.choice(legalActions)
     

@@ -115,6 +115,20 @@ class ActorCriticNetwork(torch.nn.Module):
         
         return self.actor(state_t)
     
+    def get_action_probability(self, state, action):
+
+        if type(state) is tuple:
+            state = np.array(state)
+        state_t = torch.FloatTensor(state)
+                    
+        actions_probabilities = self.actor(state_t)
+        
+        # print("actions_probabilities")
+        # print(actions_probabilities)
+        # print("action")
+        # print(action.reshape(-1,1))
+        return actions_probabilities.gather(1, action.reshape(-1,1))
+    
     def get_next_action(self, state, legal_actions):
         
         action_probs = self.get_action_prob(state).detach().numpy()
@@ -158,22 +172,21 @@ class ActorCriticNetwork(torch.nn.Module):
     
     def update(self, states_batch, actions_batch, rewards_batch, new_states_batch, new_legal_actions_batch, dones_batch):
         
-        self.optimizer.zero_grad() 
         state_t = torch.FloatTensor(states_batch)
         action_t = torch.LongTensor(actions_batch).reshape(-1,1)
         
+        self.optimizer.zero_grad() 
         loss = self.calculate_actor_loss(state_t, action_t) 
-        self.losses.append(loss.detach().numpy())
         loss.backward() 
         self.optimizer.step()
         
         self.update_critic(states_batch, actions_batch, rewards_batch, new_states_batch, new_legal_actions_batch, dones_batch)
      
+        self.losses.append(loss.detach().numpy())
         # self.update_loss.append(loss.detach().numpy())
     def update_critic(self, states_batch, actions_batch, rewards_batch, new_states_batch, new_legal_actions_batch, dones_batch):
         # print("update")
         # print(rewards_batch)
-        self.optimizer_critic.zero_grad() 
         state_t = torch.FloatTensor(states_batch)
         reward_t = torch.FloatTensor(rewards_batch) 
         action_t = torch.LongTensor(actions_batch).reshape(-1,1)
@@ -181,22 +194,64 @@ class ActorCriticNetwork(torch.nn.Module):
         new_legal_actions_t = torch.BoolTensor(new_legal_actions_batch)
         dones_t = torch.BoolTensor(dones_batch)
         
+        self.optimizer_critic.zero_grad() 
         loss = self.calculate_critic_loss(state_t, action_t, reward_t, new_states_t, new_legal_actions_t, dones_t) 
-        self.state_losses.append(loss.detach().numpy())
+  
         loss.backward() 
         self.optimizer_critic.step()
-         
+        
+        self.state_losses.append(loss.detach().numpy())
         # self.update_loss.append(loss.detach().numpy())
               
     def calculate_actor_loss(self, state_t, action_t):
-                
-        action_probs = self.get_action_prob(state_t)
-        logprob = torch.log(action_probs)
-        selected_logprobs = self.get_action_state_value(state_t, action_t).detach() * \
-                                logprob[np.arange(len(action_t)), action_t]
         
-        loss = -selected_logprobs.mean()
+        # print("state_t")
+        # print(state_t.shape)
+        # print("action_t")
+        # print(action_t.shape)
+        # print("calculate_loss")
+        probs = self.get_action_probability(state_t, action_t)
+        # print("advantage_t")
+        # print(reward_t)
+        # print("probs")
+        # print(probs)
+        logprob = - torch.log(probs)
+        # 
+        # print("logprob")
+        # print(logprob)
+        
+        # print("action_t")
+        # print(action_t)
+        selected_logprobs = self.get_action_state_value(state_t, action_t).detach() * logprob
+        # print("selected_logprobs")
+        # print(selected_logprobs)
+        loss = selected_logprobs.mean()
+        # print("loss")
+        # print(loss)
+        
         # print("loss\n" + str(loss))
+        return loss 
+    
+    
+                
+        # action_probs = self.get_action_prob(state_t)
+        # print("action_probs")
+        # print(action_probs)
+        # logprob = torch.log(action_probs)
+        # print("logprob")
+        # print(logprob)
+        # action_state_value = self.get_action_state_value(state_t, action_t).detach()
+        # print("action_state_value")
+        # print(action_state_value)
+        # action_logprob = logprob[np.arange(len(action_t)), action_t]        
+        # print("action_logprob")
+        # print(action_logprob)
+        # selected_logprobs =  action_state_value * action_logprob
+        # print("selected_logprobs")
+        # print(selected_logprobs)
+        
+        # loss = -selected_logprobs.mean()
+        # # print("loss\n" + str(loss))
         return loss     
     
     
@@ -244,7 +299,8 @@ class ActorCriticNetwork(torch.nn.Module):
 class AC_Builder(object):
 
     def __init__(self, num_players, versus_agents, state_type, total_episodes, 
-                 learning_rate, discount, reference = "", previous_nn_filename = None):             
+                 learning_rate, discount, reference = "", 
+                 previous_nn_filename = None, reward_by_win = 0):             
                     
         self.total_episodes = total_episodes
         
@@ -255,6 +311,7 @@ class AC_Builder(object):
         self.versus_agents = versus_agents
         self.agents = [] 
         self.discount = discount
+        self.reward_by_win = reward_by_win 
         
         batch_size = 256
         memory_size = 1024            
@@ -266,7 +323,7 @@ class AC_Builder(object):
         chopsticks_phase_mode = state_type.trained_with_chopsticks_phase()
         
         self.env = gym.make('sushi-go-v0', agents = self.agents, state_type = state_type,
-        chopsticks_phase_mode = chopsticks_phase_mode)
+        chopsticks_phase_mode = chopsticks_phase_mode, reward_by_win = self.reward_by_win)
         
         action_size = self.env.action_space.n
                 
@@ -277,8 +334,8 @@ class AC_Builder(object):
             previous_episodes = previous_nn_filename.split("_")[-2]
             previous_episodes = int(previous_episodes)
             
-            self.ac_network.load(previous_nn_filename)
-            
+            self.ac_network = torch.load(previous_nn_filename + ".pt")
+                        
             Q_input = open(previous_nn_filename + ".pkl", 'rb')
             self.state_transf_data = pickle.load(Q_input)
             Q_input.close()
@@ -294,6 +351,7 @@ class AC_Builder(object):
         self.filename += state_type.__name__ + "_"
         self.filename += "lr" + str(learning_rate) + "_"
         self.filename += "d" + str(discount) + "_"
+        self.filename += "wr" + str(reward_by_win) + "_"
         self.filename += str(previous_episodes + total_episodes) + "_"
         self.filename += reference
         
@@ -328,11 +386,14 @@ class AC_Builder(object):
                                                 
                 print(str(episode) + " episodes.")
                 print("Reward: " + str(current_batch.total_reward))
+                print("Score: " + str(current_batch.points))
+                print("Wins: " + str(current_batch.points_by_victory))
                 
                 episodes_batch_id = int(episode / 1000)
                 batch_filename = self.filename + "-" + str(episodes_batch_id)
+                                
+                torch.save(self.ac_network, batch_filename + ".pt")
                 
-                self.ac_network.save(batch_filename)  
                 if self.state_transf_data is not None:
                     self.state_transf_data.save(batch_filename)
                                 
@@ -460,9 +521,11 @@ class AC_Builder(object):
             
                 rewards.append(episode_rewards)
                 current_batch.total_reward += episode_rewards
+                current_batch.points += info['score']                      
+                current_batch.points_by_victory += info['points_by_victory']
          
         
-        self.ac_network.save(self.filename) 
+        torch.save(self.ac_network, self.filename + ".pt")
         self.state_transf_data.save(self.filename)
         
         batches.append(current_batch)                

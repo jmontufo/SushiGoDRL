@@ -29,17 +29,27 @@ from agents_sushi_go.card_lover_agent import ChopstickLoverAtFirstAgent
 # from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase1
 # from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase2
 # from agents_sushi_go.mc_tree_search_agent import  MCTreeSearchAgentPhase3
+from agents_sushi_go.deep_q_learning.deep_q_learning_agent_v2 import DeepQLearningAgentPhase1
 from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DeepQLearningTorchAgentPhase1
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DeepQLearningTorchAgentPhase2
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DoubleDeepQLearningTorchAgentPhase1
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DoubleDeepQLearningTorchAgentPhase2
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DualingDeepQLearningTorchAgentPhase1
+from agents_sushi_go.deep_q_learning.deep_q_learning_torch_agent import  DualingDeepQLearningTorchAgentPhase2
+from agents_sushi_go.deep_q_learning.maxmin_deep_q_learning_agent import MaxminDQLearningTorchAgentPhase1
+from agents_sushi_go.deep_q_learning.maxmin_deep_q_learning_agent import MaxminDQLearningTorchAgentPhase2
+from agents_sushi_go.multiagent_learning.minimax_multi_deep_q_learning_agent import MinimaxQAgent
 
-agent_to_test = DeepQLearningTorchAgentPhase1()
+
+agent_to_test = DeepQLearningAgentPhase1()
 
 agents = []
+# agents.append(DeepQLearningTorchAgentPhase2())
+# agents.append(DoubleDeepQLearningTorchAgentPhase2())
+# agents.append(DualingDeepQLearningTorchAgentPhase2())
 agents.append(RandomAgent())
-# agents.append(RandomAgent())
-# agents.append(RandomAgent())
-# agents.append(RandomAgent())
 
-games_number = 1000
+games_number = 500
 victories_by_player = [0,0,0,0,0]
 points_by_player = [0,0,0,0,0]
 
@@ -58,7 +68,8 @@ for i in range(0, games_number):
 
     print ("Loop " + str(i) + ":\n")
     
-    rival_new_legal_actions = list(range(9))
+    rival_new_legal_actions = new_game.get_rival_legal_actions_numbers()
+    
     second_card = None
     while not new_game.is_finished():
                 
@@ -93,7 +104,7 @@ for i in range(0, games_number):
         
         done = new_game.is_finished()
         new_legal_actions = new_game.get_legal_actions()
-        rival_new_legal_actions = new_game.get_rival_legal_actions()
+        rival_new_legal_actions = new_game.get_rival_legal_actions_numbers()
         
         # agent_to_test.learn_from_previous_action(reward, done, new_legal_actions)
         
